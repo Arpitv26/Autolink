@@ -1,8 +1,11 @@
-import { Picker } from '@react-native-picker/picker';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +15,69 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
+
+type DropdownOption = {
+  label: string;
+  value: string;
+};
+
+type DropdownKey = 'year' | 'make' | 'model';
+type SaveUiState = 'idle' | 'saving' | 'success';
+
+type ActiveDropdown = {
+  title: string;
+  value: string | null;
+  options: DropdownOption[];
+  emptyText: string;
+  onSelect: (value: string) => void;
+};
+
+type DropdownFieldProps = {
+  label: string;
+  valueLabel: string | null;
+  placeholder: string;
+  disabled?: boolean;
+  onPress: () => void;
+};
+
+function DropdownField({
+  label,
+  valueLabel,
+  placeholder,
+  disabled = false,
+  onPress,
+}: DropdownFieldProps) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable
+        disabled={disabled}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.dropdownButton,
+          disabled && styles.dropdownButtonDisabled,
+          pressed && !disabled && styles.buttonPressed,
+        ]}
+      >
+        <Text
+          style={[
+            styles.dropdownValue,
+            !valueLabel && styles.dropdownPlaceholder,
+            disabled && styles.dropdownValueDisabled,
+          ]}
+          numberOfLines={1}
+        >
+          {valueLabel ?? placeholder}
+        </Text>
+        <Ionicons
+          name="chevron-down"
+          size={18}
+          color={disabled ? '#B4BBC7' : '#9CA3AF'}
+        />
+      </Pressable>
+    </View>
+  );
+}
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -37,28 +103,217 @@ export default function ProfileScreen() {
     saveSelectedVehicle,
   } = useGarageSetup(user);
 
+  const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
+  const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
+  const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHandledSuccessRef = useRef<string | null>(null);
+  const saveColorProgress = useRef(new Animated.Value(0)).current;
+
+  const accountInitials = useMemo(() => {
+    const raw = user?.email?.split('@')[0] ?? 'AU';
+    const compact = raw.replace(/[^a-zA-Z]/g, '');
+    if (!compact) return 'AU';
+    return compact.slice(0, 2).toUpperCase();
+  }, [user?.email]);
+
+  const selectedMake = useMemo(
+    () => makes.find((item) => item.makeId === selectedMakeId) ?? null,
+    [makes, selectedMakeId]
+  );
+
+  const selectedModel = useMemo(
+    () => models.find((item) => item.modelId === selectedModelId) ?? null,
+    [models, selectedModelId]
+  );
+
+  const yearOptionsForDropdown = useMemo<DropdownOption[]>(
+    () => yearOptions.map((item) => ({ label: item, value: item })),
+    [yearOptions]
+  );
+
+  const makeOptionsForDropdown = useMemo<DropdownOption[]>(
+    () =>
+      makes.map((item) => ({
+        label: item.makeName,
+        value: String(item.makeId),
+      })),
+    [makes]
+  );
+
+  const modelOptionsForDropdown = useMemo<DropdownOption[]>(
+    () =>
+      models.map((item) => ({
+        label: item.modelName,
+        value: String(item.modelId),
+      })),
+    [models]
+  );
+
+  const activeDropdown = useMemo<ActiveDropdown | null>(() => {
+    switch (activeDropdownKey) {
+      case 'year':
+        return {
+          title: 'Select model year',
+          value: year.length === 4 ? year : null,
+          options: yearOptionsForDropdown,
+          emptyText: 'No years available.',
+          onSelect: (value: string) => setYear(value),
+        };
+      case 'make':
+        return {
+          title: 'Select make',
+          value: selectedMakeId ? String(selectedMakeId) : null,
+          options: makeOptionsForDropdown,
+          emptyText: loadingMakes ? 'Loading makes...' : 'No makes available.',
+          onSelect: (value: string) => setSelectedMakeId(Number(value)),
+        };
+      case 'model':
+        return {
+          title: 'Select model',
+          value: selectedModelId ? String(selectedModelId) : null,
+          options: modelOptionsForDropdown,
+          emptyText: loadingModels ? 'Loading models...' : 'No models available.',
+          onSelect: (value: string) => setSelectedModelId(Number(value)),
+        };
+      default:
+        return null;
+    }
+  }, [
+    activeDropdownKey,
+    loadingMakes,
+    loadingModels,
+    makeOptionsForDropdown,
+    modelOptionsForDropdown,
+    selectedMakeId,
+    selectedModelId,
+    setSelectedMakeId,
+    setSelectedModelId,
+    setYear,
+    year,
+    yearOptionsForDropdown,
+  ]);
+
+  const openDropdown = (key: DropdownKey): void => {
+    if (key === 'make' && (year.length !== 4 || loadingMakes)) return;
+    if (key === 'model' && (!selectedMakeId || loadingModels)) return;
+    setActiveDropdownKey(key);
+  };
+
+  const closeDropdown = (): void => {
+    setActiveDropdownKey(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (saveSuccessTimeoutRef.current) {
+        clearTimeout(saveSuccessTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (savingVehicle) {
+      if (saveSuccessTimeoutRef.current) {
+        clearTimeout(saveSuccessTimeoutRef.current);
+      }
+      setSaveUiState('saving');
+      lastHandledSuccessRef.current = null;
+      return;
+    }
+
+    if (successMessage && successMessage !== lastHandledSuccessRef.current) {
+      lastHandledSuccessRef.current = successMessage;
+      setSaveUiState('success');
+
+      Animated.timing(saveColorProgress, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: false,
+      }).start();
+
+      if (saveSuccessTimeoutRef.current) {
+        clearTimeout(saveSuccessTimeoutRef.current);
+      }
+
+      saveSuccessTimeoutRef.current = setTimeout(() => {
+        Animated.timing(saveColorProgress, {
+          toValue: 0,
+          duration: 260,
+          useNativeDriver: false,
+        }).start(() => {
+          setSaveUiState('idle');
+        });
+        saveSuccessTimeoutRef.current = null;
+      }, 1800);
+      return;
+    }
+
+    if (error) {
+      setSaveUiState('idle');
+      Animated.timing(saveColorProgress, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: false,
+      }).start();
+      return;
+    }
+
+    if (saveUiState !== 'success') {
+      setSaveUiState('idle');
+    }
+  }, [error, saveColorProgress, saveUiState, savingVehicle, successMessage]);
+
+  const handleSaveVehicle = (): void => {
+    void saveSelectedVehicle();
+  };
+
+  const saveButtonBackgroundColor = saveColorProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#0B1635', '#16A34A'],
+  });
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.pageTitle}>Profile</Text>
         <Text style={styles.pageSubtitle}>Manage your account and garage.</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <Text style={styles.accountEmail}>{user?.email ?? 'Signed-in account'}</Text>
+        <View style={styles.card}>
+          <View style={styles.accountRow}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{accountInitials}</Text>
+            </View>
+            <View style={styles.accountDetails}>
+              <Text style={styles.accountTitle}>Account</Text>
+              <View style={styles.emailRow}>
+                <Ionicons name="mail-outline" size={14} color="#6B7280" />
+                <Text numberOfLines={1} style={styles.accountEmail}>
+                  {user?.email ?? 'Signed-in account'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
           <Pressable
-            onPress={() => router.push('/(tabs)/profile-data')}
+            onPress={() => router.push('/profile-data')}
             style={({ pressed }) => [styles.dataButton, pressed && styles.buttonPressed]}
           >
-            <Text style={styles.dataButtonText}>Data & Personal Info</Text>
+            <View style={styles.dataButtonLeft}>
+              <Ionicons name="shield-checkmark-outline" size={16} color="#6B7280" />
+              <Text style={styles.dataButtonText}>Data & Personal Info</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#A3A9B4" />
           </Pressable>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Garage</Text>
-          <Text style={styles.sectionHint}>Your primary vehicle is used across AI, planner, and feed.</Text>
+        <View style={styles.card}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialCommunityIcons name="car-outline" size={19} color="#111827" />
+            <Text style={styles.sectionTitle}>Garage</Text>
+          </View>
+          <Text style={styles.sectionHint}>
+            Your primary vehicle is used across AI, planner, and feed.
+          </Text>
 
           {loadingSavedVehicles ? (
             <View style={styles.inlineRow}>
@@ -66,97 +321,161 @@ export default function ProfileScreen() {
               <Text style={styles.inlineText}>Loading saved vehicle...</Text>
             </View>
           ) : primaryVehicle ? (
-            <View style={styles.savedVehicleCard}>
-              <Text style={styles.savedVehicleLabel}>Saved primary vehicle</Text>
-              <Text style={styles.savedVehicleText}>
+            <View style={styles.primaryVehicleCard}>
+              <View style={styles.primaryLabelRow}>
+                <View style={styles.primaryDot} />
+                <Text style={styles.primaryLabel}>Primary vehicle</Text>
+              </View>
+              <Text style={styles.primaryText}>
                 {primaryVehicle.year} {primaryVehicle.make} {primaryVehicle.model}
               </Text>
             </View>
           ) : null}
 
-          <Text style={styles.inputLabel}>Model Year</Text>
-          <View style={styles.pickerContainer}>
-            <Picker selectedValue={year} onValueChange={(value) => setYear(String(value))}>
-              <Picker.Item label="Select year" value="" />
-              {yearOptions.map((item) => (
-                <Picker.Item key={item} label={item} value={item} />
-              ))}
-            </Picker>
-          </View>
+          <DropdownField
+            label="Model Year"
+            valueLabel={year.length === 4 ? year : null}
+            placeholder="Select year"
+            onPress={() => openDropdown('year')}
+          />
 
-          <Text style={styles.inputLabel}>Make</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              enabled={!loadingMakes && year.length === 4}
-              selectedValue={selectedMakeId ?? -1}
-              onValueChange={(value) => setSelectedMakeId(value === -1 ? null : Number(value))}
-            >
-              <Picker.Item
-                label={loadingMakes ? 'Loading makes...' : 'Select make'}
-                value={-1}
-              />
-              {makes.map((item) => (
-                <Picker.Item key={item.makeId} label={item.makeName} value={item.makeId} />
-              ))}
-            </Picker>
-          </View>
+          <DropdownField
+            label="Make"
+            valueLabel={selectedMake?.makeName ?? null}
+            placeholder={
+              loadingMakes
+                ? 'Loading makes...'
+                : year.length === 4
+                  ? 'Select make'
+                  : 'Select year first'
+            }
+            disabled={year.length !== 4 || loadingMakes}
+            onPress={() => openDropdown('make')}
+          />
 
-          <Text style={styles.inputLabel}>Model</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              enabled={!loadingModels && selectedMakeId !== null}
-              selectedValue={selectedModelId ?? -1}
-              onValueChange={(value) => setSelectedModelId(value === -1 ? null : Number(value))}
-            >
-              <Picker.Item
-                label={loadingModels ? 'Loading models...' : 'Select model'}
-                value={-1}
-              />
-              {models.map((item) => (
-                <Picker.Item key={item.modelId} label={item.modelName} value={item.modelId} />
-              ))}
-            </Picker>
-          </View>
+          <DropdownField
+            label="Model"
+            valueLabel={selectedModel?.modelName ?? null}
+            placeholder={
+              loadingModels
+                ? 'Loading models...'
+                : selectedMakeId
+                  ? 'Select model'
+                  : 'Select make first'
+            }
+            disabled={!selectedMakeId || loadingModels}
+            onPress={() => openDropdown('model')}
+          />
 
           <Pressable
-            onPress={saveSelectedVehicle}
+            onPress={handleSaveVehicle}
             disabled={!canSaveVehicle}
             style={({ pressed }) => [
-              styles.saveButton,
+              styles.saveButtonPressable,
               !canSaveVehicle && styles.saveButtonDisabled,
-              pressed && styles.buttonPressed,
+              pressed && canSaveVehicle && styles.buttonPressed,
             ]}
           >
-            {savingVehicle ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Vehicle</Text>
-            )}
+            <Animated.View style={[styles.saveButton, { backgroundColor: saveButtonBackgroundColor }]}>
+              {saveUiState === 'saving' ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : saveUiState === 'success' ? (
+                <View style={styles.saveSuccessRow}>
+                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                  <Text style={styles.saveButtonText}>Vehicle Saved</Text>
+                </View>
+              ) : (
+                <Text style={styles.saveButtonText}>Save Vehicle</Text>
+              )}
+            </Animated.View>
           </Pressable>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+        </View>
 
-          <View style={styles.proCard}>
-            <Text style={styles.proTitle}>Multiple vehicles (Pro)</Text>
-            <Text style={styles.proText}>
-              Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between multiple cars.
-            </Text>
-            <Pressable disabled style={styles.proButtonDisabled}>
-              <Text style={styles.proButtonText}>
-                {hasFreeVehicleLimitReached ? 'Add another vehicle (Pro)' : 'Unlock Pro vehicles'}
-              </Text>
-            </Pressable>
+        <View style={styles.proCard}>
+          <View style={styles.proHeaderRow}>
+            <Ionicons name="sparkles-outline" size={14} color="#FBBF24" />
+            <Text style={styles.proTitle}>Multiple Vehicles</Text>
+            <View style={styles.proBadge}>
+              <Text style={styles.proBadgeText}>PRO</Text>
+            </View>
           </View>
+          <Text style={styles.proBodyText}>
+            Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between multiple cars.
+          </Text>
+
+          <Pressable disabled style={styles.proCtaDisabled}>
+            <Ionicons name="add" size={18} color="#E5E7EB" />
+            <Text style={styles.proCtaText}>
+              {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
+            </Text>
+          </Pressable>
         </View>
 
         <Pressable
           onPress={() => void signOut()}
           style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]}
         >
+          <Ionicons name="log-out-outline" size={16} color="#EF4444" />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
+
+        <Text style={styles.footerText}>AutoLink v1.0 - Phase 1</Text>
       </ScrollView>
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={activeDropdown !== null}
+        onRequestClose={closeDropdown}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable style={styles.modalBackdrop} onPress={closeDropdown} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{activeDropdown?.title}</Text>
+              <Pressable onPress={closeDropdown} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={18} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            {activeDropdown && activeDropdown.options.length > 0 ? (
+              <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
+                {activeDropdown.options.map((option) => {
+                  const isSelected = activeDropdown.value === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => {
+                        activeDropdown.onSelect(option.value);
+                        closeDropdown();
+                      }}
+                      style={({ pressed }) => [
+                        styles.modalOption,
+                        isSelected && styles.modalOptionSelected,
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelSelected]}
+                        numberOfLines={1}
+                      >
+                        {option.label}
+                      </Text>
+                      {isSelected ? (
+                        <Ionicons name="checkmark" size={18} color="#2563EB" />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={styles.modalEmptyText}>{activeDropdown?.emptyText}</Text>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -164,175 +483,381 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F7',
   },
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 28,
+    paddingBottom: 120,
   },
   pageTitle: {
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#1F2937',
+    letterSpacing: -0.8,
   },
   pageSubtitle: {
     marginTop: 2,
-    color: '#64748B',
-    fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 18,
+    color: '#6B7280',
+    fontSize: 15,
+    fontWeight: '500',
   },
-  section: {
+  card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5EAF1',
+    marginBottom: 14,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#4F73FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  accountDetails: {
+    flex: 1,
+  },
+  accountTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  emailRow: {
+    marginTop: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  accountEmail: {
+    flex: 1,
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  dataButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dataButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  dataButtonText: {
+    color: '#374151',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
   },
   sectionTitle: {
-    fontSize: 16,
+    color: '#1F2937',
+    fontSize: 27,
     fontWeight: '700',
-    color: '#111827',
   },
   sectionHint: {
     marginTop: 4,
-    color: '#64748B',
-    fontSize: 13,
-    marginBottom: 10,
-  },
-  accountEmail: {
-    marginTop: 6,
-    color: '#334155',
-    fontSize: 13,
-    marginBottom: 10,
-  },
-  dataButton: {
-    backgroundColor: '#EEF2FF',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  dataButtonText: {
-    color: '#1E3A8A',
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#D9E1EC',
-    marginVertical: 16,
-  },
-  savedVehicleCard: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-  },
-  savedVehicleLabel: {
-    color: '#3730A3',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  savedVehicleText: {
-    color: '#0F172A',
-    marginTop: 2,
+    marginBottom: 14,
+    color: '#6B7280',
     fontSize: 14,
+    lineHeight: 20,
+    paddingLeft: 26,
   },
-  inputLabel: {
-    marginTop: 6,
-    marginBottom: 6,
-    color: '#1F2937',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  pickerContainer: {
+  primaryVehicleCard: {
+    marginBottom: 14,
+    borderRadius: 12,
+    backgroundColor: '#EEF3FF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
+    borderColor: '#DCE8FF',
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  primaryLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  primaryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3B82F6',
+  },
+  primaryLabel: {
+    color: '#3B82F6',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  primaryText: {
+    marginTop: 4,
+    marginLeft: 13,
+    color: '#1F2937',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  fieldGroup: {
+    marginBottom: 10,
+  },
+  fieldLabel: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginLeft: 2,
+  },
+  dropdownButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E3E8EF',
+    backgroundColor: '#F8FAFC',
+    minHeight: 44,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownButtonDisabled: {
+    backgroundColor: '#EEF2F7',
+  },
+  dropdownValue: {
+    color: '#1F2937',
+    fontSize: 17,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 10,
+  },
+  dropdownPlaceholder: {
+    color: '#99A1AE',
+    fontWeight: '500',
+  },
+  dropdownValueDisabled: {
+    color: '#B4BBC7',
+  },
+  saveButtonPressable: {
+    marginTop: 6,
+    borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 8,
   },
   saveButton: {
-    marginTop: 6,
-    backgroundColor: '#0B132B',
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    minHeight: 50,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     opacity: 0.5,
   },
+  saveSuccessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   saveButtonText: {
     color: '#FFFFFF',
+    fontSize: 17,
     fontWeight: '700',
   },
   errorText: {
     marginTop: 10,
-    color: '#B91C1C',
-    fontSize: 13,
-  },
-  successText: {
-    marginTop: 10,
-    color: '#166534',
-    fontSize: 13,
-  },
-  proCard: {
-    marginTop: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 10,
-    backgroundColor: '#F8FAFC',
-  },
-  proTitle: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  proText: {
-    marginTop: 4,
-    color: '#64748B',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  proButtonDisabled: {
-    marginTop: 10,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  proButtonText: {
-    color: '#6B7280',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  logoutButton: {
-    marginTop: 18,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 10,
-    backgroundColor: '#FEF2F2',
-  },
-  logoutText: {
     color: '#DC2626',
     fontSize: 14,
-    fontWeight: '500',
-  },
-  buttonPressed: {
-    transform: [{ scale: 0.985 }],
   },
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    gap: 8,
   },
   inlineText: {
-    marginLeft: 8,
-    color: '#334155',
-    fontSize: 13,
+    color: '#4B5563',
+    fontSize: 14,
+  },
+  proCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    backgroundColor: '#111B35',
+    padding: 14,
+    marginBottom: 14,
+  },
+  proHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  proTitle: {
+    color: '#F8FAFC',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  proBadge: {
+    marginLeft: 4,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  proBadgeText: {
+    color: '#FCD34D',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  proBodyText: {
+    marginTop: 8,
+    color: '#9AA9C1',
+    lineHeight: 20,
+    fontSize: 14,
+  },
+  proCtaDisabled: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flexDirection: 'row',
+  },
+  proCtaText: {
+    color: '#E5E7EB',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  logoutButton: {
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E6E8EF',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    flexDirection: 'row',
+  },
+  logoutText: {
+    color: '#EF4444',
+    fontSize: 20,
+    fontWeight: '500',
+  },
+  footerText: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.985 }],
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 30,
+    maxHeight: '70%',
+    borderTopWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    color: '#111827',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  modalList: {
+    maxHeight: 380,
+  },
+  modalListContent: {
+    paddingBottom: 8,
+  },
+  modalOption: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#EEF3FF',
+    borderColor: '#BFD3FF',
+  },
+  modalOptionLabel: {
+    color: '#374151',
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
+  modalOptionLabelSelected: {
+    color: '#1E3A8A',
+    fontWeight: '700',
+  },
+  modalEmptyText: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 18,
+    marginBottom: 8,
   },
 });

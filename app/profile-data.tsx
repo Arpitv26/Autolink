@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -10,8 +11,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 type ProfileRow = {
   display_name: string | null;
@@ -103,14 +104,25 @@ export default function ProfileDataScreen() {
     setSuccess('Profile details saved.');
   }, [displayName, pronouns, user]);
 
+  const handleBack = useCallback((): void => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(tabs)/profile');
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Pressable
+          onPress={handleBack}
+          style={({ pressed }) => [styles.backButton, pressed && styles.buttonPressed]}
+        >
+          <Ionicons name="arrow-back" size={20} color="#334155" />
         </Pressable>
 
-        <Text style={styles.title}>Personal Data</Text>
+        <Text style={styles.title}>Data & Personal Info</Text>
         <Text style={styles.subtitle}>Manage your standard profile information.</Text>
 
         {loading ? (
@@ -139,6 +151,7 @@ export default function ProfileDataScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Enter your name"
+              placeholderTextColor="#94A3B8"
               style={styles.input}
             />
 
@@ -147,13 +160,14 @@ export default function ProfileDataScreen() {
               value={pronouns}
               onChangeText={setPronouns}
               placeholder="e.g. she/her, he/him, they/them"
+              placeholderTextColor="#94A3B8"
               style={styles.input}
             />
           </View>
         )}
 
         <Pressable
-          onPress={handleSave}
+          onPress={() => void handleSave()}
           disabled={loading || saving}
           style={({ pressed }) => [
             styles.saveButton,
@@ -174,31 +188,29 @@ export default function ProfileDataScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F7',
   },
   container: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 28,
+    paddingBottom: 34,
   },
   backButton: {
-    alignSelf: 'flex-start',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  backText: {
-    color: '#334155',
-    fontWeight: '600',
-    fontSize: 12,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    marginTop: 12,
+    marginTop: 14,
     fontSize: 28,
     fontWeight: '700',
     color: '#0F172A',
+    letterSpacing: -0.3,
   },
   subtitle: {
     marginTop: 4,
@@ -245,8 +257,8 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 14,
-    backgroundColor: '#0B132B',
-    borderRadius: 10,
+    backgroundColor: '#0B1635',
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },

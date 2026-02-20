@@ -20,5 +20,16 @@ export default function RootLayout() {
     }
   }, [initializing, segments, session]);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen
+        name="profile-data"
+        options={{
+          animation: 'slide_from_right',
+          gestureEnabled: true,
+        }}
+      />
+    </Stack>
+  );
 }

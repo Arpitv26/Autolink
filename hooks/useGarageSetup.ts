@@ -133,12 +133,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     }));
 
     setSavedVehicles(mapped);
-
-    const first = mapped.find((item) => item.isPrimary) ?? mapped[0] ?? null;
-    if (first) {
-      setYearState(String(first.year));
-    }
-
     setLoadingSavedVehicles(false);
   }, [user]);
 
@@ -165,9 +159,12 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       setSelectedModelIdState(null);
 
       try {
-        const results = await fetchMakesByYear(year);
+        const results = (await fetchMakesByYear(year)).sort((a, b) =>
+          a.makeName.localeCompare(b.makeName)
+        );
         if (!isMounted) return;
         setMakes(results);
+
         if (results.length === 0) {
           setError('No makes found for that year.');
         }
@@ -202,9 +199,12 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       setSelectedModelIdState(null);
 
       try {
-        const results = await fetchModelsByYearMake(year, selectedMakeId);
+        const results = (await fetchModelsByYearMake(year, selectedMakeId)).sort((a, b) =>
+          a.modelName.localeCompare(b.modelName)
+        );
         if (!isMounted) return;
         setModels(results);
+
         if (results.length === 0) {
           setError('No models found for that make/year.');
         }
