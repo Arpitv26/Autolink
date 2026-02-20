@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
+import { theme } from '../../lib/theme';
 
 type DropdownOption = {
   label: string;
@@ -72,7 +73,7 @@ function DropdownField({
         <Ionicons
           name="chevron-down"
           size={18}
-          color={disabled ? '#B4BBC7' : '#9CA3AF'}
+          color={disabled ? theme.colors.textDisabled : theme.colors.textMuted}
         />
       </Pressable>
     </View>
@@ -269,7 +270,7 @@ export default function ProfileScreen() {
 
   const saveButtonBackgroundColor = saveColorProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#0B1635', '#16A34A'],
+    outputRange: [theme.colors.buttonPrimary, theme.colors.buttonSuccess],
   });
 
   return (
@@ -286,7 +287,7 @@ export default function ProfileScreen() {
             <View style={styles.accountDetails}>
               <Text style={styles.accountTitle}>Account</Text>
               <View style={styles.emailRow}>
-                <Ionicons name="mail-outline" size={14} color="#6B7280" />
+                <Ionicons name="mail-outline" size={14} color={theme.colors.textSecondary} />
                 <Text numberOfLines={1} style={styles.accountEmail}>
                   {user?.email ?? 'Signed-in account'}
                 </Text>
@@ -299,16 +300,16 @@ export default function ProfileScreen() {
             style={({ pressed }) => [styles.dataButton, pressed && styles.buttonPressed]}
           >
             <View style={styles.dataButtonLeft}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#6B7280" />
+              <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.textSecondary} />
               <Text style={styles.dataButtonText}>Data & Personal Info</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#A3A9B4" />
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.iconSubtle} />
           </Pressable>
         </View>
 
         <View style={styles.card}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialCommunityIcons name="car-outline" size={19} color="#111827" />
+            <MaterialCommunityIcons name="car-outline" size={19} color={theme.colors.textIconDark} />
             <Text style={styles.sectionTitle}>Garage</Text>
           </View>
           <Text style={styles.sectionHint}>
@@ -317,7 +318,7 @@ export default function ProfileScreen() {
 
           {loadingSavedVehicles ? (
             <View style={styles.inlineRow}>
-              <ActivityIndicator color="#111827" />
+              <ActivityIndicator color={theme.colors.textIconDark} />
               <Text style={styles.inlineText}>Loading saved vehicle...</Text>
             </View>
           ) : primaryVehicle ? (
@@ -378,10 +379,10 @@ export default function ProfileScreen() {
           >
             <Animated.View style={[styles.saveButton, { backgroundColor: saveButtonBackgroundColor }]}>
               {saveUiState === 'saving' ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={theme.colors.textInverse} />
               ) : saveUiState === 'success' ? (
                 <View style={styles.saveSuccessRow}>
-                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
                   <Text style={styles.saveButtonText}>Vehicle Saved</Text>
                 </View>
               ) : (
@@ -395,7 +396,7 @@ export default function ProfileScreen() {
 
         <View style={styles.proCard}>
           <View style={styles.proHeaderRow}>
-            <Ionicons name="sparkles-outline" size={14} color="#FBBF24" />
+            <Ionicons name="sparkles-outline" size={14} color={theme.colors.brandProIcon} />
             <Text style={styles.proTitle}>Multiple Vehicles</Text>
             <View style={styles.proBadge}>
               <Text style={styles.proBadgeText}>PRO</Text>
@@ -406,7 +407,7 @@ export default function ProfileScreen() {
           </Text>
 
           <Pressable disabled style={styles.proCtaDisabled}>
-            <Ionicons name="add" size={18} color="#E5E7EB" />
+            <Ionicons name="add" size={18} color={theme.colors.borderDefault} />
             <Text style={styles.proCtaText}>
               {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
             </Text>
@@ -417,7 +418,7 @@ export default function ProfileScreen() {
           onPress={() => void signOut()}
           style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]}
         >
-          <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={16} color={theme.colors.textDangerStrong} />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
 
@@ -436,7 +437,7 @@ export default function ProfileScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{activeDropdown?.title}</Text>
               <Pressable onPress={closeDropdown} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={18} color="#6B7280" />
+                <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
               </Pressable>
             </View>
 
@@ -464,7 +465,7 @@ export default function ProfileScreen() {
                         {option.label}
                       </Text>
                       {isSelected ? (
-                        <Ionicons name="checkmark" size={18} color="#2563EB" />
+                        <Ionicons name="checkmark" size={18} color={theme.colors.brandPrimary} />
                       ) : null}
                     </Pressable>
                   );
@@ -483,7 +484,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: theme.colors.appBackground,
   },
   container: {
     paddingHorizontal: 18,
@@ -493,24 +494,24 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 40,
     fontWeight: '700',
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     letterSpacing: -0.8,
   },
   pageSubtitle: {
     marginTop: 2,
     marginBottom: 18,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 15,
     fontWeight: '500',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5EAF1',
+    borderColor: theme.colors.borderSoft,
     marginBottom: 14,
-    shadowColor: '#0F172A',
+    shadowColor: theme.colors.shadowColor,
     shadowOpacity: 0.03,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -525,13 +526,13 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#4F73FF',
+    backgroundColor: theme.colors.brandAvatar,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -541,7 +542,7 @@ const styles = StyleSheet.create({
   accountTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
   },
   emailRow: {
     marginTop: 3,
@@ -551,14 +552,14 @@ const styles = StyleSheet.create({
   },
   accountEmail: {
     flex: 1,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 14,
   },
   dataButton: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F8FAFC',
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surfaceMuted,
     paddingVertical: 12,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -571,7 +572,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   dataButtonText: {
-    color: '#374151',
+    color: theme.colors.textSubtle,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -581,14 +582,14 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   sectionTitle: {
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     fontSize: 27,
     fontWeight: '700',
   },
   sectionHint: {
     marginTop: 4,
     marginBottom: 14,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     paddingLeft: 26,
@@ -596,9 +597,9 @@ const styles = StyleSheet.create({
   primaryVehicleCard: {
     marginBottom: 14,
     borderRadius: 12,
-    backgroundColor: '#EEF3FF',
+    backgroundColor: theme.colors.surfaceBrand,
     borderWidth: 1,
-    borderColor: '#DCE8FF',
+    borderColor: theme.colors.borderBrandSoft,
     paddingVertical: 11,
     paddingHorizontal: 12,
   },
@@ -611,10 +612,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.brandSecondary,
   },
   primaryLabel: {
-    color: '#3B82F6',
+    color: theme.colors.brandSecondary,
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.4,
@@ -623,7 +624,7 @@ const styles = StyleSheet.create({
   primaryText: {
     marginTop: 4,
     marginLeft: 13,
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -631,7 +632,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   fieldLabel: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 6,
@@ -640,8 +641,8 @@ const styles = StyleSheet.create({
   dropdownButton: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E3E8EF',
-    backgroundColor: '#F8FAFC',
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceMuted,
     minHeight: 44,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -649,21 +650,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dropdownButtonDisabled: {
-    backgroundColor: '#EEF2F7',
+    backgroundColor: theme.colors.surfaceDisabled,
   },
   dropdownValue: {
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     fontSize: 17,
     fontWeight: '600',
     flex: 1,
     marginRight: 10,
   },
   dropdownPlaceholder: {
-    color: '#99A1AE',
+    color: theme.colors.textPlaceholder,
     fontWeight: '500',
   },
   dropdownValueDisabled: {
-    color: '#B4BBC7',
+    color: theme.colors.textDisabled,
   },
   saveButtonPressable: {
     marginTop: 6,
@@ -685,13 +686,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 17,
     fontWeight: '700',
   },
   errorText: {
     marginTop: 10,
-    color: '#DC2626',
+    color: theme.colors.textDanger,
     fontSize: 14,
   },
   inlineRow: {
@@ -701,14 +702,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inlineText: {
-    color: '#4B5563',
+    color: theme.colors.textFieldReadOnly,
     fontSize: 14,
   },
   proCard: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    backgroundColor: '#111B35',
+    borderColor: theme.colors.borderPro,
+    backgroundColor: theme.colors.surfacePro,
     padding: 14,
     marginBottom: 14,
   },
@@ -718,7 +719,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   proTitle: {
-    color: '#F8FAFC',
+    color: theme.colors.textProTitle,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -727,18 +728,18 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    backgroundColor: theme.colors.surfaceProBadge,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderColor: theme.colors.borderProBadge,
   },
   proBadgeText: {
-    color: '#FCD34D',
+    color: theme.colors.textProBadge,
     fontSize: 11,
     fontWeight: '700',
   },
   proBodyText: {
     marginTop: 8,
-    color: '#9AA9C1',
+    color: theme.colors.textProBody,
     lineHeight: 20,
     fontSize: 14,
   },
@@ -746,8 +747,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: theme.colors.borderProCta,
+    backgroundColor: theme.colors.surfaceProCta,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -755,7 +756,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   proCtaText: {
-    color: '#E5E7EB',
+    color: theme.colors.textProCta,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -763,22 +764,22 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E6E8EF',
-    backgroundColor: '#FFFFFF',
+    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     flexDirection: 'row',
   },
   logoutText: {
-    color: '#EF4444',
+    color: theme.colors.textDangerStrong,
     fontSize: 20,
     fontWeight: '500',
   },
   footerText: {
     marginTop: 10,
     textAlign: 'center',
-    color: '#9CA3AF',
+    color: theme.colors.textMuted,
     fontSize: 12,
   },
   buttonPressed: {
@@ -790,18 +791,18 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+    backgroundColor: theme.colors.surfaceOverlay,
   },
   modalSheet: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     paddingTop: 12,
     paddingHorizontal: 14,
     paddingBottom: 30,
     maxHeight: '70%',
     borderTopWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.borderDefault,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -810,7 +811,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalTitle: {
-    color: '#111827',
+    color: theme.colors.textIconDark,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -820,7 +821,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.surfaceChip,
   },
   modalList: {
     maxHeight: 380,
@@ -833,29 +834,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.colors.borderDefault,
     marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   modalOptionSelected: {
-    backgroundColor: '#EEF3FF',
-    borderColor: '#BFD3FF',
+    backgroundColor: theme.colors.surfaceBrand,
+    borderColor: theme.colors.borderBrand,
   },
   modalOptionLabel: {
-    color: '#374151',
+    color: theme.colors.textSubtle,
     fontSize: 15,
     fontWeight: '500',
     flex: 1,
     marginRight: 8,
   },
   modalOptionLabelSelected: {
-    color: '#1E3A8A',
+    color: theme.colors.brandDeep,
     fontWeight: '700',
   },
   modalEmptyText: {
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     marginTop: 18,
     marginBottom: 8,

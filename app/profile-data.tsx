@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { theme } from '../lib/theme';
 
 type ProfileRow = {
   display_name: string | null;
@@ -119,7 +120,7 @@ export default function ProfileDataScreen() {
           onPress={handleBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.buttonPressed]}
         >
-          <Ionicons name="arrow-back" size={20} color="#334155" />
+          <Ionicons name="arrow-back" size={20} color={theme.colors.textSlate} />
         </Pressable>
 
         <Text style={styles.title}>Data & Personal Info</Text>
@@ -127,7 +128,7 @@ export default function ProfileDataScreen() {
 
         {loading ? (
           <View style={styles.loadingRow}>
-            <ActivityIndicator color="#0F172A" />
+            <ActivityIndicator color={theme.colors.textHeading} />
             <Text style={styles.loadingText}>Loading profile...</Text>
           </View>
         ) : (
@@ -151,7 +152,7 @@ export default function ProfileDataScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Enter your name"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.colors.textSignInHelper}
               style={styles.input}
             />
 
@@ -160,7 +161,7 @@ export default function ProfileDataScreen() {
               value={pronouns}
               onChangeText={setPronouns}
               placeholder="e.g. she/her, he/him, they/them"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.colors.textSignInHelper}
               style={styles.input}
             />
           </View>
@@ -175,7 +176,11 @@ export default function ProfileDataScreen() {
             pressed && styles.buttonPressed,
           ]}
         >
-          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>Save Changes</Text>}
+          {saving ? (
+            <ActivityIndicator color={theme.colors.textInverse} />
+          ) : (
+            <Text style={styles.saveText}>Save Changes</Text>
+          )}
         </Pressable>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -188,7 +193,7 @@ export default function ProfileDataScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: theme.colors.appBackground,
   },
   container: {
     paddingHorizontal: 20,
@@ -199,9 +204,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.borderInput,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -209,13 +214,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 28,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.textHeading,
     letterSpacing: -0.3,
   },
   subtitle: {
     marginTop: 4,
     marginBottom: 14,
-    color: '#64748B',
+    color: theme.colors.textHint,
     fontSize: 14,
   },
   loadingRow: {
@@ -225,39 +230,39 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 8,
-    color: '#334155',
+    color: theme.colors.textSlate,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.borderInput,
   },
   label: {
     marginBottom: 6,
     marginTop: 4,
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     fontWeight: '600',
     fontSize: 13,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.borderInput,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    color: '#0F172A',
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.textHeading,
   },
   inputReadOnly: {
-    backgroundColor: '#F8FAFC',
-    color: '#475569',
+    backgroundColor: theme.colors.surfaceMuted,
+    color: theme.colors.textFieldReadOnly,
   },
   saveButton: {
     marginTop: 14,
-    backgroundColor: '#0B1635',
+    backgroundColor: theme.colors.buttonPrimary,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -266,16 +271,16 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   saveText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '700',
   },
   errorText: {
     marginTop: 10,
-    color: '#B91C1C',
+    color: theme.colors.textDanger,
   },
   successText: {
     marginTop: 10,
-    color: '#166534',
+    color: theme.colors.textSuccess,
   },
   buttonPressed: {
     transform: [{ scale: 0.985 }],

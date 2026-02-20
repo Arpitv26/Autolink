@@ -2,12 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { theme } from '../../lib/theme';
 
 export default function FeedScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.iconWrap}>
-        <MaterialCommunityIcons name="account-group-outline" size={33} color="#FFFFFF" />
+        <MaterialCommunityIcons name="account-group-outline" size={33} color={theme.colors.textInverse} />
       </View>
 
       <Text style={styles.title}>Community Feed</Text>
@@ -16,7 +17,7 @@ export default function FeedScreen() {
       </Text>
 
       <View style={styles.badge}>
-        <Ionicons name="time-outline" size={14} color="#EA580C" />
+        <Ionicons name="time-outline" size={14} color={theme.colors.brandWarning} />
         <Text style={styles.badgeText}>Phase 2 will add posts, likes, and comments</Text>
       </View>
     </View>
@@ -29,7 +30,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 28,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: theme.colors.appBackground,
   },
   iconWrap: {
     width: 68,
@@ -37,8 +38,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F97316',
-    shadowColor: '#F97316',
+    backgroundColor: theme.colors.brandFeed,
+    shadowColor: theme.colors.brandFeed,
     shadowOpacity: 0.24,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
@@ -48,13 +49,13 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 39,
     fontWeight: '700',
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     letterSpacing: -0.8,
   },
   subtitle: {
     marginTop: 8,
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.textSecondary,
     lineHeight: 24,
     textAlign: 'center',
     maxWidth: 290,
@@ -65,13 +66,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 9,
     paddingHorizontal: 14,
-    backgroundColor: '#FFF0E8',
+    backgroundColor: theme.colors.surfaceWarningSoft,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
   },
   badgeText: {
-    color: '#EA580C',
+    color: theme.colors.brandWarning,
     fontSize: 15,
     fontWeight: '600',
   },

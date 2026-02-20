@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { theme } from '../../lib/theme';
 
 function renderTabIcon(routeName: string, color: string, focused: boolean) {
   const size = focused ? 22 : 20;
@@ -26,17 +27,17 @@ export default function TabsLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         animation: 'shift',
-        sceneStyle: { backgroundColor: '#F2F4F7' },
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarActiveBackgroundColor: '#EEF3FF',
+        sceneStyle: { backgroundColor: theme.colors.appBackground },
+        tabBarActiveTintColor: theme.colors.brandPrimary,
+        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarActiveBackgroundColor: theme.colors.surfaceBrand,
         tabBarStyle: {
           height: 70,
           paddingTop: 5,
           paddingBottom: 7,
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          backgroundColor: '#FFFFFF',
+          borderTopColor: theme.colors.borderDefault,
+          backgroundColor: theme.colors.surface,
         },
         tabBarItemStyle: {
           marginHorizontal: 4,

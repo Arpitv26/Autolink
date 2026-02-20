@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
+import { theme } from '../../lib/theme';
 
 export default function SignInScreen() {
   const { signInWithGoogle } = useAuth();
@@ -38,7 +39,7 @@ export default function SignInScreen() {
         disabled={isSigningIn}
       >
         {isSigningIn ? (
-          <ActivityIndicator color="#0F172A" />
+          <ActivityIndicator color={theme.colors.textInverse} />
         ) : (
           <Text style={styles.buttonText}>Sign in with Google</Text>
         )}
@@ -54,21 +55,21 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     justifyContent: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.appBackground,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: theme.colors.textHeading,
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 15,
-    color: '#CBD5F5',
+    color: theme.colors.textSecondary,
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: theme.colors.buttonSignIn,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -80,17 +81,17 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   buttonText: {
-    color: '#0F172A',
+    color: theme.colors.textInverse,
     fontWeight: '700',
   },
   helper: {
     marginTop: 12,
-    color: '#94A3B8',
+    color: theme.colors.textMuted,
     fontSize: 12,
   },
   error: {
     marginTop: 10,
-    color: '#FCA5A5',
+    color: theme.colors.textDanger,
     fontSize: 13,
   },
 });
