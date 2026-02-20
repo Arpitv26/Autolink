@@ -15,6 +15,8 @@ type UseAuthResult = {
 };
 
 const AUTH_CODE_PATTERN = /[?&]code=([^&]+)/;
+const ACCESS_TOKEN_PATTERN = /[?#&]access_token=([^&]+)/;
+const REFRESH_TOKEN_PATTERN = /[?#&]refresh_token=([^&]+)/;
 
 function getAuthCodeFromUrl(url: string): string | null {
   try {
@@ -25,6 +27,22 @@ function getAuthCodeFromUrl(url: string): string | null {
     if (!match?.[1]) return null;
     return decodeURIComponent(match[1]);
   }
+}
+
+function getTokensFromUrl(
+  url: string
+): { accessToken: string; refreshToken: string } | null {
+  const accessTokenMatch = url.match(ACCESS_TOKEN_PATTERN);
+  const refreshTokenMatch = url.match(REFRESH_TOKEN_PATTERN);
+
+  if (!accessTokenMatch?.[1] || !refreshTokenMatch?.[1]) {
+    return null;
+  }
+
+  return {
+    accessToken: decodeURIComponent(accessTokenMatch[1]),
+    refreshToken: decodeURIComponent(refreshTokenMatch[1]),
+  };
 }
 
 export function useAuth(): UseAuthResult {
@@ -95,14 +113,26 @@ export function useAuth(): UseAuthResult {
     }
 
     const code = getAuthCodeFromUrl(result.url);
-    if (!code) {
-      throw new Error('Missing auth code from Google callback.');
+    if (code) {
+      const { error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) {
+        throw new Error(exchangeError.message);
+      }
+      return;
     }
 
-    const { error: exchangeError } =
-      await supabase.auth.exchangeCodeForSession(code);
-    if (exchangeError) {
-      throw new Error(exchangeError.message);
+    const tokens = getTokensFromUrl(result.url);
+    if (!tokens) {
+      throw new Error('Google callback did not include a usable auth session.');
+    }
+
+    const { error: setSessionError } = await supabase.auth.setSession({
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    });
+    if (setSessionError) {
+      throw new Error(setSessionError.message);
     }
   }, []);
 
