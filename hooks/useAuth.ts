@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import type { Session, User } from '@supabase/supabase-js';
+import { ensureUserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -63,6 +64,9 @@ export function useAuth(): UseAuthResult {
       } else {
         setSession(data.session ?? null);
         setUser(data.session?.user ?? null);
+        if (data.session?.user) {
+          void ensureUserProfile(data.session.user).catch(() => {});
+        }
       }
 
       setInitializing(false);
@@ -74,6 +78,9 @@ export function useAuth(): UseAuthResult {
       (_event, nextSession) => {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
+        if (nextSession?.user) {
+          void ensureUserProfile(nextSession.user).catch(() => {});
+        }
       }
     );
 

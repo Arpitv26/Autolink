@@ -1,3 +1,5 @@
+import { Picker } from '@react-native-picker/picker';
+import { router } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -5,241 +7,332 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
 
 export default function ProfileScreen() {
+  const { user, signOut } = useAuth();
   const {
     year,
-    selectedMake,
-    selectedModel,
+    yearOptions,
+    makes,
+    models,
+    selectedMakeId,
+    selectedModelId,
+    primaryVehicle,
     loadingMakes,
     loadingModels,
+    loadingSavedVehicles,
+    savingVehicle,
     error,
-    canLoadMakes,
-    canLoadModels,
-    trimmedMakes,
-    trimmedModels,
+    successMessage,
+    canSaveVehicle,
+    hasFreeVehicleLimitReached,
     setYear,
-    selectMake,
-    selectModel,
-    handleLoadMakes,
-    handleLoadModels,
-  } = useGarageSetup();
+    setSelectedMakeId,
+    setSelectedModelId,
+    saveSelectedVehicle,
+  } = useGarageSetup(user);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Garage Setup</Text>
-      <Text style={styles.subtitle}>Add your vehicle using NHTSA data</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.pageTitle}>Profile</Text>
+        <Text style={styles.pageSubtitle}>Manage your account and garage.</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Model Year</Text>
-        <TextInput
-          value={year}
-          onChangeText={setYear}
-          keyboardType="number-pad"
-          maxLength={4}
-          placeholder="e.g. 2019"
-          style={styles.input}
-        />
-        <Pressable
-          onPress={handleLoadMakes}
-          disabled={!canLoadMakes || loadingMakes}
-          style={({ pressed }) => [
-            styles.button,
-            (!canLoadMakes || loadingMakes) && styles.buttonDisabled,
-            pressed && styles.buttonPressed,
-          ]}
-        >
-          {loadingMakes ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.buttonText}>Load Makes</Text>
-          )}
-        </Pressable>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.accountEmail}>{user?.email ?? 'Signed-in account'}</Text>
+          <Pressable
+            onPress={() => router.push('/(tabs)/profile-data')}
+            style={({ pressed }) => [styles.dataButton, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.dataButtonText}>Data & Personal Info</Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Make</Text>
-        {trimmedMakes.length === 0 ? (
-          <Text style={styles.helper}>Load makes to see options.</Text>
-        ) : (
-          trimmedMakes.map((make) => (
-            <Pressable
-              key={make.makeId}
-              onPress={() => selectMake(make)}
-              style={({ pressed }) => [
-                styles.option,
-                selectedMake?.makeId === make.makeId && styles.optionSelected,
-                pressed && styles.optionPressed,
-              ]}
+        <View style={styles.divider} />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Garage</Text>
+          <Text style={styles.sectionHint}>Your primary vehicle is used across AI, planner, and feed.</Text>
+
+          {loadingSavedVehicles ? (
+            <View style={styles.inlineRow}>
+              <ActivityIndicator color="#111827" />
+              <Text style={styles.inlineText}>Loading saved vehicle...</Text>
+            </View>
+          ) : primaryVehicle ? (
+            <View style={styles.savedVehicleCard}>
+              <Text style={styles.savedVehicleLabel}>Saved primary vehicle</Text>
+              <Text style={styles.savedVehicleText}>
+                {primaryVehicle.year} {primaryVehicle.make} {primaryVehicle.model}
+              </Text>
+            </View>
+          ) : null}
+
+          <Text style={styles.inputLabel}>Model Year</Text>
+          <View style={styles.pickerContainer}>
+            <Picker selectedValue={year} onValueChange={(value) => setYear(String(value))}>
+              <Picker.Item label="Select year" value="" />
+              {yearOptions.map((item) => (
+                <Picker.Item key={item} label={item} value={item} />
+              ))}
+            </Picker>
+          </View>
+
+          <Text style={styles.inputLabel}>Make</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              enabled={!loadingMakes && year.length === 4}
+              selectedValue={selectedMakeId ?? -1}
+              onValueChange={(value) => setSelectedMakeId(value === -1 ? null : Number(value))}
             >
-              <Text style={styles.optionText}>{make.makeName}</Text>
-            </Pressable>
-          ))
-        )}
-      </View>
+              <Picker.Item
+                label={loadingMakes ? 'Loading makes...' : 'Select make'}
+                value={-1}
+              />
+              {makes.map((item) => (
+                <Picker.Item key={item.makeId} label={item.makeName} value={item.makeId} />
+              ))}
+            </Picker>
+          </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Model</Text>
-        <Pressable
-          onPress={handleLoadModels}
-          disabled={!canLoadModels || loadingModels}
-          style={({ pressed }) => [
-            styles.buttonSecondary,
-            (!canLoadModels || loadingModels) && styles.buttonDisabled,
-            pressed && styles.buttonPressed,
-          ]}
-        >
-          {loadingModels ? (
-            <ActivityIndicator color="#111827" />
-          ) : (
-            <Text style={styles.buttonSecondaryText}>Load Models</Text>
-          )}
-        </Pressable>
-        {trimmedModels.length === 0 ? (
-          <Text style={styles.helper}>Select a make to load models.</Text>
-        ) : (
-          trimmedModels.map((model) => (
-            <Pressable
-              key={model.modelId}
-              onPress={() => selectModel(model)}
-              style={({ pressed }) => [
-                styles.option,
-                selectedModel?.modelId === model.modelId && styles.optionSelected,
-                pressed && styles.optionPressed,
-              ]}
+          <Text style={styles.inputLabel}>Model</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              enabled={!loadingModels && selectedMakeId !== null}
+              selectedValue={selectedModelId ?? -1}
+              onValueChange={(value) => setSelectedModelId(value === -1 ? null : Number(value))}
             >
-              <Text style={styles.optionText}>{model.modelName}</Text>
+              <Picker.Item
+                label={loadingModels ? 'Loading models...' : 'Select model'}
+                value={-1}
+              />
+              {models.map((item) => (
+                <Picker.Item key={item.modelId} label={item.modelName} value={item.modelId} />
+              ))}
+            </Picker>
+          </View>
+
+          <Pressable
+            onPress={saveSelectedVehicle}
+            disabled={!canSaveVehicle}
+            style={({ pressed }) => [
+              styles.saveButton,
+              !canSaveVehicle && styles.saveButtonDisabled,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            {savingVehicle ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Vehicle</Text>
+            )}
+          </Pressable>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+
+          <View style={styles.proCard}>
+            <Text style={styles.proTitle}>Multiple vehicles (Pro)</Text>
+            <Text style={styles.proText}>
+              Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between multiple cars.
+            </Text>
+            <Pressable disabled style={styles.proButtonDisabled}>
+              <Text style={styles.proButtonText}>
+                {hasFreeVehicleLimitReached ? 'Add another vehicle (Pro)' : 'Unlock Pro vehicles'}
+              </Text>
             </Pressable>
-          ))
-        )}
-      </View>
+          </View>
+        </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.summary}>
-        <Text style={styles.summaryTitle}>Selected Vehicle</Text>
-        <Text style={styles.summaryText}>
-          {year && selectedMake && selectedModel
-            ? `${year} ${selectedMake.makeName} ${selectedModel.modelName}`
-            : 'Select year, make, and model to complete your garage.'}
-        </Text>
-      </View>
-    </ScrollView>
+        <Pressable
+          onPress={() => void signOut()}
+          style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]}
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
+  safeArea: {
+    flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  title: {
-    fontSize: 28,
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 28,
+  },
+  pageTitle: {
+    fontSize: 30,
     fontWeight: '700',
     color: '#0F172A',
   },
-  subtitle: {
-    marginTop: 4,
-    marginBottom: 20,
-    fontSize: 14,
+  pageSubtitle: {
+    marginTop: 2,
     color: '#64748B',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-  label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  input: {
+  section: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  sectionHint: {
+    marginTop: 4,
+    color: '#64748B',
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  accountEmail: {
+    marginTop: 6,
+    color: '#334155',
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  dataButton: {
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  dataButtonText: {
+    color: '#1E3A8A',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#D9E1EC',
+    marginVertical: 16,
+  },
+  savedVehicleCard: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+  },
+  savedVehicleLabel: {
+    color: '#3730A3',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  savedVehicleText: {
+    color: '#0F172A',
+    marginTop: 2,
+    fontSize: 14,
+  },
+  inputLabel: {
+    marginTop: 6,
+    marginBottom: 6,
+    color: '#1F2937',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  pickerContainer: {
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#0F172A',
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: '#111827',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  buttonSecondary: {
-    backgroundColor: '#E2E8F0',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  buttonSecondaryText: {
-    color: '#111827',
-    fontWeight: '600',
-  },
-  helper: {
-    color: '#64748B',
-    fontSize: 13,
-  },
-  option: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    overflow: 'hidden',
     marginBottom: 8,
   },
-  optionSelected: {
-    backgroundColor: '#DBEAFE',
+  saveButton: {
+    marginTop: 6,
+    backgroundColor: '#0B132B',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
-  optionPressed: {
-    opacity: 0.8,
+  saveButtonDisabled: {
+    opacity: 0.5,
   },
-  optionText: {
-    color: '#0F172A',
-    fontSize: 14,
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-  error: {
+  errorText: {
+    marginTop: 10,
     color: '#B91C1C',
-    marginBottom: 12,
+    fontSize: 13,
   },
-  summary: {
-    backgroundColor: '#0F172A',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
+  successText: {
+    marginTop: 10,
+    color: '#166534',
+    fontSize: 13,
   },
-  summaryTitle: {
-    color: '#F8FAFC',
+  proCard: {
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    backgroundColor: '#F8FAFC',
+  },
+  proTitle: {
+    color: '#111827',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  proText: {
+    marginTop: 4,
+    color: '#64748B',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  proButtonDisabled: {
+    marginTop: 10,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  proButtonText: {
+    color: '#6B7280',
     fontWeight: '600',
-    marginBottom: 6,
+    fontSize: 12,
   },
-  summaryText: {
-    color: '#E2E8F0',
+  logoutButton: {
+    marginTop: 18,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 10,
+    backgroundColor: '#FEF2F2',
+  },
+  logoutText: {
+    color: '#DC2626',
     fontSize: 14,
+    fontWeight: '500',
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.985 }],
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  inlineText: {
+    marginLeft: 8,
+    color: '#334155',
+    fontSize: 13,
   },
 });
