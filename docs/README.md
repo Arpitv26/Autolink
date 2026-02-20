@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🔗 AutoLink
+# AutoLink
 
 ### *Plan it. Build it. Share it.*
 
-**An AI-powered mobile platform for car enthusiasts to plan modifications, check compatibility, and connect with a community — all personalised to your specific vehicle.**
+**An AI-powered mobile platform for car enthusiasts to plan modifications, check compatibility, and connect with a community, all personalised to your specific vehicle.**
 
 [![React Native](https://img.shields.io/badge/React_Native-Expo-0ea5e9?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -16,7 +16,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [About the Project](#-about-the-project)
 - [The Problem](#-the-problem)
@@ -35,16 +35,16 @@
 
 ---
 
-## 🚗 About the Project
+## About the Project
 
 AutoLink is a solo-built mobile application developed as a portfolio project by a 2nd-year CS student at UBC. It solves a real pain point in the car enthusiast community: **fragmentation**.
 
 Right now, a car enthusiast planning a modification has to bounce between:
-- 📺 **YouTube** for inspiration
-- 📋 **Reddit** for compatibility questions
-- 📊 **Google Sheets** to track their build budget
-- 📸 **Instagram** to share progress
-- 🛒 **E-commerce sites** to compare prices
+- **YouTube** for inspiration
+- **Reddit** for compatibility questions
+- **Google Sheets** to track their build budget
+- **Instagram** to share progress
+- **E-commerce sites** to compare prices
 
 None of these tools talk to each other. **AutoLink changes that.**
 
@@ -52,7 +52,7 @@ None of these tools talk to each other. **AutoLink changes that.**
 
 ---
 
-## 🔥 The Problem
+## The Problem
 
 No existing app combines all three pillars of the car modification experience:
 
@@ -68,9 +68,9 @@ No existing app combines all three pillars of the car modification experience:
 
 ---
 
-## ✨ Core Features
+## Core Features
 
-### 🤖 AI Modification Assistant
+### AI Modification Assistant
 A conversational AI chat interface where users ask natural language questions about modifications, part compatibility, and build advice — contextualised to their specific vehicle.
 
 - Powered by **OpenAI GPT-4o mini**
@@ -79,7 +79,7 @@ A conversational AI chat interface where users ask natural language questions ab
 - Explicitly flags fitment uncertainty rather than guessing
 - Rate-limited to 20 queries/day per user (demo phase)
 
-### 🔧 Visual Modification Planner
+### Visual Modification Planner
 A drag-and-drop canvas to visually plan and organise your entire build.
 
 - Drag mod cards into category zones (suspension, exhaust, wheels, etc.)
@@ -88,7 +88,7 @@ A drag-and-drop canvas to visually plan and organise your entire build.
 - Auto-saves to Supabase PostgreSQL
 - Share your build directly to the Social Feed
 
-### 📸 Social Community Feed
+### Social Community Feed
 An Instagram-style feed built specifically for car enthusiasts.
 
 - Infinite scroll feed of public builds
@@ -96,7 +96,7 @@ An Instagram-style feed built specifically for car enthusiasts.
 - Like, comment, and follow other enthusiasts
 - Posts can link directly to a saved build in the Mod Planner
 
-### 🚘 Garage Profile
+### Garage Profile
 Personalise the entire app experience around your specific car.
 
 - Sign in with Google or Apple (no password required)
@@ -122,38 +122,38 @@ Personalise the entire app experience around your specific car.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                   AutoLink Mobile App                          │
-│              (Expo / React Native / TypeScript)                │
-│                                                                │
-│   ┌──────────────┐   ┌──────────────┐   ┌──────────────────┐  │
-│   │   AI Chat    │   │    Build     │   │   Social Feed    │  │
-│   │  (Gifted     │   │   Planner    │   │  (FlatList +     │  │
-│   │   Chat UI)   │   │ (Reanimated  │   │   expo-image)    │  │
-│   └──────┬───────┘   │  drag-drop)  │   └────────┬─────────┘  │
-│          │           └──────┬───────┘            │            │
-└──────────┼─────────────────┼────────────────────┼────────────┘
-           │                 │                    │
-    ┌──────▼─────┐    ┌──────▼────────────────────▼────────┐
-    │  OpenAI    │    │              Supabase               │
-    │  GPT-4o    │    │  ┌──────────┐  ┌────────────────┐   │
-    │  mini API  │    │  │PostgreSQL│  │    Storage     │   │
-    │            │    │  │ Database │  │  (Car images)  │   │
-    └────────────┘    │  └──────────┘  └────────────────┘   │
-                      │  ┌──────────┐  ┌────────────────┐   │
-    ┌─────────────┐   │  │   Auth   │  │   Realtime     │   │
-    │  NHTSA API  │   │  │  (JWT)   │  │  (WebSocket)   │   │
-    │  CarQuery   │   │  └──────────┘  └────────────────┘   │
-    │   (free)    │   └─────────────────────────────────────┘
-    └─────────────┘
+                      ┌───────────────────────────────────────────────────────────────┐
+                      │                   AutoLink Mobile App                         │
+                      │              (Expo / React Native / TypeScript)               │
+                      │                                                               │
+                      │   ┌──────────────┐   ┌──────────────┐   ┌──────────────────┐  │
+                      │   │   AI Chat    │   │    Build     │   │   Social Feed    │  │
+                      │   │  (Gifted     │   │   Planner    │   │  (FlatList +     │  │
+                      │   │   Chat UI)   │   │ (Reanimated  │   │   expo-image)    │  │
+                      │   └──────┬───────┘   │  drag-drop)  │   └────────┬─────────┘  │
+                      │          │           └──────┬───────┘            │            │
+                      └──────────┼──────────────────┼────────────────────┼────────────┘
+                                 │                  │                    │
+                          ┌──────▼─────┐    ┌───────▼────────────────────▼─────────┐
+                          │  OpenAI    │    │               Supabase               │
+                          │  GPT-4o    │    │  ┌──────────┐   ┌────────────────┐   │
+                          │  mini API  │    │  │PostgreSQL│   │    Storage     │   │
+                          │            │    │  │ Database │   │  (Car images)  │   │
+                          └────────────┘    │  └──────────┘   └────────────────┘   │
+                                            │  ┌──────────┐   ┌────────────────┐   │
+                          ┌─────────────┐   │  │   Auth   │   │   Realtime     │   │
+                          │  NHTSA API  │   │  │  (JWT)   │   │  (WebSocket)   │   │
+                          │  CarQuery   │   │  └──────────┘   └────────────────┘   │
+                          │   (free)    │   └──────────────────────────────────────┘
+                          └─────────────┘
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -203,7 +203,7 @@ Scan the QR code with Expo Go on your phone, or press `i` for iOS simulator / `a
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 autolink/
@@ -245,7 +245,7 @@ autolink/
 
 ---
 
-## 🗄️ Database Schema
+## Database Schema
 
 AutoLink uses PostgreSQL via Supabase. Here's the core data model:
 
@@ -309,7 +309,7 @@ create table comments (
 
 ---
 
-## 🤖 AI Assistant
+## AI Assistant
 
 ### How It Works
 
@@ -361,16 +361,16 @@ You are AutoLink AI, an expert automotive modification assistant.
 
 ---
 
-## 🚗 Automotive Data APIs
+## Automotive Data APIs
 
 AutoLink uses free government and community APIs for vehicle data — zero cost for demo scale.
 
 | API | Provider | Data | Pricing | Coverage |
 |---|---|---|---|---|
-| **NHTSA vPIC** ✅ | US Government | VIN decode, makes/models/years/trims, recalls | **Free, no key** | US vehicles (1981–present) |
-| **CarQuery API** ✅ | CarQuery.com | Engine specs, dimensions, 90K+ variants | **Free, no key** | Global (1941–present) |
+| **NHTSA vPIC**✓ | US Government | VIN decode, makes/models/years/trims, recalls | **Free, no key** | US vehicles (1981–present) |
+| **CarQuery API** ✓ | CarQuery.com | Engine specs, dimensions, 90K+ variants | **Free, no key** | Global (1941–present) |
 | **NHTSA Recalls** | US Government | Safety recalls, defect investigations | **Free, no key** | US vehicles |
-| Edmunds API ⚠️ | Edmunds.com | Full specs, pricing, dealer data | Free (registration required, becoming restrictive) | US vehicles |
+| Edmunds API ⚠︎ | Edmunds.com | Full specs, pricing, dealer data | Free (registration required, becoming restrictive) | US vehicles |
 
 ### Example: Vehicle Lookup with NHTSA vPIC
 
@@ -417,7 +417,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 
 ---
 
-## 💰 Budget & Cost
+## Budget & Cost
 
 AutoLink is designed to run well within a $50/month budget during the demo phase.
 
@@ -430,7 +430,7 @@ AutoLink is designed to run well within a $50/month budget during the demo phase
 | **CarQuery API** | Vehicle specs + engine data | Completely free, no key | **$0/month** |
 | Domain *(optional)* | autolink.app or similar | N/A | ~$10–15/year |
 
-> **💰 Total Estimated Demo Cost: $5–8/month** — well within budget. The remaining ~$42 is buffer for usage spikes or optional tools.
+> ** Total Estimated Demo Cost: $5–8/month** — well within budget. The remaining ~$42 is buffer for usage spikes or optional tools.
 
 ### Cost Optimisation Tips
 
@@ -442,7 +442,7 @@ AutoLink is designed to run well within a $50/month budget during the demo phase
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This is a solo portfolio project, but feedback and suggestions are welcome!
 
@@ -454,7 +454,7 @@ This is a solo portfolio project, but feedback and suggestions are welcome!
 
 ---
 
-## 📚 Learning Resources
+## Learning Resources
 
 Resources used while building AutoLink:
 
@@ -469,7 +469,7 @@ Resources used while building AutoLink:
 
 ---
 
-## 📄 License
+## License
 
 This project is for educational and portfolio purposes.
 
