@@ -22,6 +22,17 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - AI/Planner/Feed remain placeholder UIs, but now show shared primary-vehicle context.
 
 ## 2) Recently Completed
+- Persisted active-vehicle switching to database primary state:
+  - Vehicle switch now updates `vehicles.is_primary` and propagates across tabs.
+  - Files: `hooks/useGarageSetup.ts`, `app/(tabs)/profile.tsx`
+- Upgraded Garage vehicle UX:
+  - Added visible "Your vehicles" card list with `Primary`/`Active` status and direct `Set active`.
+  - Added delete confirmation modal before vehicle deletion.
+  - Files: `app/(tabs)/profile.tsx`
+- Smoothed active-vehicle interaction polish:
+  - Added non-bouncy card reorder glide for vehicle activation.
+  - Prevented Garage section flicker during vehicle switch via silent vehicle refresh.
+  - Files: `app/(tabs)/profile.tsx`, `hooks/useGarageSetup.ts`
 - Implemented hybrid Pro vehicle gate:
   - Free users limited to 1 vehicle.
   - Additional vehicles gated behind Pro UI.
@@ -48,6 +59,8 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
   - visual polish
   - interaction polish
   - copy/state polish
+- Next immediate focus:
+  - loading/error/empty-state polish for Profile and placeholder tabs
 - Prep for onboarding skeleton gate (lightweight now, full polished onboarding later).
 
 ## 4) Open Decisions
@@ -70,11 +83,9 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - Ensure required Supabase migrations are applied in dashboard before testing affected flows.
 
 ## 7) Next 3 Tasks (Suggested)
-1. Apply and validate new Supabase migrations on project:
-   - `supabase/migrations/20260221120000_profile_avatars_storage.sql`
-   - `supabase/migrations/20260221133000_profiles_is_pro.sql`
-2. Build lightweight onboarding skeleton gate (new-user guidance + vehicle-required path).
-3. Continue profile and placeholder-tab polish (copy/spacing/loading/edge states) and validate on Expo Go.
+1. Build and validate profile + placeholder-tab loading/error/edge-state polish (#4 focus).
+2. Build lightweight onboarding skeleton gate and include profile-completeness progress strip (#5 in onboarding scope).
+3. Verify profile vehicle flows and cross-tab context on Expo Go, then commit profile polish slice.
 
 ## 8) Key Files To Load First
 - `AGENTS.md`

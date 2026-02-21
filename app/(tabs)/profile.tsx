@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
+  Animated as RNAnimated,
   Easing,
   Image,
   Modal,
@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import Reanimated, { LinearTransition } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
@@ -30,6 +31,12 @@ type DropdownOption = {
 type DropdownKey = 'vehicle' | 'year' | 'make' | 'model';
 type SaveUiState = 'idle' | 'saving' | 'success';
 type ProfileSection = 'vehicles' | 'posts' | 'favorites';
+type PendingVehicleDeletion = {
+  id: string;
+  label: string;
+};
+
+const VEHICLE_CARD_LAYOUT_TRANSITION = LinearTransition.duration(260);
 
 type ActiveDropdown = {
   title: string;
@@ -124,14 +131,17 @@ export default function ProfileScreen() {
   const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
   const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
+  const [switchingVehicleId, setSwitchingVehicleId] = useState<string | null>(null);
   const [manageVehicleExpanded, setManageVehicleExpanded] = useState(false);
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
+  const [pendingVehicleDeletion, setPendingVehicleDeletion] =
+    useState<PendingVehicleDeletion | null>(null);
   const [saveSuccessLabel, setSaveSuccessLabel] = useState('Vehicle Saved');
   const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
   const [saveButtonWidth, setSaveButtonWidth] = useState(0);
   const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandledSuccessRef = useRef<string | null>(null);
-  const saveSuccessTranslateX = useRef(new Animated.Value(0)).current;
+  const saveSuccessTranslateX = useRef(new RNAnimated.Value(0)).current;
   const {
     username: profileUsername,
     displayName: profileDisplayName,
@@ -196,6 +206,13 @@ export default function ProfileScreen() {
     return primaryVehicle;
   }, [activeVehicleId, primaryVehicle, savedVehicles]);
 
+  const orderedVehicles = useMemo(() => {
+    if (!activeVehicle?.id) return savedVehicles;
+    const activeFirst = savedVehicles.find((item) => item.id === activeVehicle.id);
+    if (!activeFirst) return savedVehicles;
+    return [activeFirst, ...savedVehicles.filter((item) => item.id !== activeFirst.id)];
+  }, [activeVehicle?.id, savedVehicles]);
+
   useEffect(() => {
     if (savedVehicles.length === 0) {
       setActiveVehicleId(null);
@@ -212,19 +229,39 @@ export default function ProfileScreen() {
 
   const handleSelectVehicle = useCallback(
     (vehicleId: string): void => {
-      if (vehicleId === primaryVehicle?.id) {
-        setActiveVehicleId(vehicleId);
+      if (
+        vehicleId === activeVehicle?.id ||
+        savingVehicle ||
+        Boolean(switchingVehicleId) ||
+        Boolean(deletingVehicleId)
+      ) {
         return;
       }
 
+      const previousVehicleId = activeVehicle?.id ?? null;
+      setActiveVehicleId(vehicleId);
+
       void (async () => {
-        const didSwitch = await setPrimaryVehicle(vehicleId);
-        if (didSwitch) {
-          setActiveVehicleId(vehicleId);
+        setSwitchingVehicleId(vehicleId);
+        try {
+          const didSwitch = await setPrimaryVehicle(vehicleId);
+          if (!didSwitch) {
+            setActiveVehicleId(previousVehicleId);
+          }
+        } finally {
+          setSwitchingVehicleId((currentValue) =>
+            currentValue === vehicleId ? null : currentValue
+          );
         }
       })();
     },
-    [primaryVehicle?.id, setPrimaryVehicle]
+    [
+      activeVehicle?.id,
+      deletingVehicleId,
+      savingVehicle,
+      setPrimaryVehicle,
+      switchingVehicleId,
+    ]
   );
 
   const vehicleOptionsForDropdown = useMemo<DropdownOption[]>(
@@ -367,7 +404,7 @@ export default function ProfileScreen() {
       }
 
       saveSuccessTimeoutRef.current = setTimeout(() => {
-        Animated.timing(saveSuccessTranslateX, {
+        RNAnimated.timing(saveSuccessTranslateX, {
           toValue: -(saveButtonWidth || 320),
           duration: 520,
           easing: Easing.out(Easing.cubic),
@@ -413,8 +450,36 @@ export default function ProfileScreen() {
     void addSelectedVehicle();
   };
 
+  const requestDeleteVehicle = useCallback(
+    (vehicleId: string): void => {
+      const targetVehicle = savedVehicles.find((item) => item.id === vehicleId);
+      if (!targetVehicle) return;
+
+      setPendingVehicleDeletion({
+        id: targetVehicle.id,
+        label: `${targetVehicle.year} ${targetVehicle.make} ${targetVehicle.model}`,
+      });
+    },
+    [savedVehicles]
+  );
+
+  const closeDeleteVehicleModal = useCallback((): void => {
+    if (deletingVehicleId) return;
+    setPendingVehicleDeletion(null);
+  }, [deletingVehicleId]);
+
+  const confirmDeleteVehicle = useCallback((): void => {
+    if (!pendingVehicleDeletion) return;
+    const vehicleId = pendingVehicleDeletion.id;
+
+    void (async () => {
+      await deleteVehicle(vehicleId);
+      setPendingVehicleDeletion(null);
+    })();
+  }, [deleteVehicle, pendingVehicleDeletion]);
+
   const handleDeleteVehicle = (vehicleId: string): void => {
-    void deleteVehicle(vehicleId);
+    requestDeleteVehicle(vehicleId);
   };
 
   return (
@@ -531,7 +596,7 @@ export default function ProfileScreen() {
                 Your primary vehicle is used across AI, planner, and feed.
               </Text>
 
-              {loadingSavedVehicles ? (
+              {loadingSavedVehicles && savedVehicles.length === 0 ? (
                 <View style={styles.inlineRow}>
                   <ActivityIndicator color={theme.colors.accentGreen} />
                   <Text style={styles.inlineText}>Loading saved vehicle...</Text>
@@ -540,28 +605,12 @@ export default function ProfileScreen() {
                 <>
                   <View style={styles.currentVehicleHeader}>
                     <Text style={styles.currentVehicleLabel}>Current vehicle</Text>
-                    <Pressable
-                      onPress={() => openDropdown('vehicle')}
-                      disabled={savedVehicles.length < 2 || savingVehicle}
-                      style={({ pressed }) => [
-                        styles.currentVehiclePicker,
-                        (savedVehicles.length < 2 || savingVehicle) && styles.currentVehiclePickerDisabled,
-                        pressed && savedVehicles.length >= 2 && !savingVehicle && styles.buttonPressed,
-                      ]}
-                    >
-                      <Text style={styles.currentVehiclePickerText}>
-                        {savedVehicles.length > 1 ? 'Switch' : 'Single'}
-                      </Text>
-                      <Ionicons
-                        name="caret-down"
-                        size={12}
-                        color={
-                          savedVehicles.length > 1
-                            ? theme.colors.accentGreenMuted
-                            : theme.colors.textDisabled
-                        }
-                      />
-                    </Pressable>
+                    {switchingVehicleId ? (
+                      <View style={styles.currentVehicleStatusRow}>
+                        <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
+                        <Text style={styles.currentVehicleStatusText}>Updating...</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={styles.primaryVehicleCard}>
                     <View style={styles.primaryLabelRow}>
@@ -571,6 +620,88 @@ export default function ProfileScreen() {
                     <Text style={styles.primaryText}>
                       {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}
                     </Text>
+                  </View>
+
+                  <View style={styles.savedVehiclesSection}>
+                    <Text style={styles.savedVehiclesTitle}>Your vehicles</Text>
+                    <View style={styles.savedVehiclesList}>
+                      {orderedVehicles.map((vehicle) => {
+                        const isPrimaryVehicle = vehicle.id === primaryVehicle?.id;
+                        const isActiveVehicle = vehicle.id === activeVehicle?.id;
+                        const isSwitchingThisVehicle = switchingVehicleId === vehicle.id;
+                        const isDeleteInProgress = deletingVehicleId === vehicle.id;
+                        const switchDisabled =
+                          isActiveVehicle ||
+                          savingVehicle ||
+                          Boolean(switchingVehicleId) ||
+                          Boolean(deletingVehicleId);
+                        const deleteDisabled =
+                          orderedVehicles.length <= 1 ||
+                          savingVehicle ||
+                          Boolean(switchingVehicleId) ||
+                          Boolean(deletingVehicleId);
+
+                        return (
+                          <Reanimated.View
+                            key={vehicle.id}
+                            layout={VEHICLE_CARD_LAYOUT_TRANSITION}
+                            style={[
+                              styles.savedVehicleCard,
+                              isActiveVehicle && styles.savedVehicleCardPrimary,
+                            ]}
+                          >
+                            <View style={styles.savedVehicleRow}>
+                              <Text style={styles.savedVehicleName}>
+                                {vehicle.year} {vehicle.make} {vehicle.model}
+                              </Text>
+                              {isActiveVehicle ? (
+                                <View style={styles.savedVehiclePrimaryBadge}>
+                                  <Text style={styles.savedVehiclePrimaryBadgeText}>
+                                    {isPrimaryVehicle ? 'Primary' : 'Active'}
+                                  </Text>
+                                </View>
+                              ) : null}
+                            </View>
+
+                            <View style={styles.savedVehicleActionsRow}>
+                              <Pressable
+                                onPress={() => handleSelectVehicle(vehicle.id)}
+                                disabled={switchDisabled}
+                                style={({ pressed }) => [
+                                  styles.savedVehicleSwitchButton,
+                                  switchDisabled && styles.savedVehicleSwitchButtonDisabled,
+                                  pressed && !switchDisabled && styles.buttonPressed,
+                                ]}
+                              >
+                                {isSwitchingThisVehicle ? (
+                                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                                ) : (
+                                  <Text style={styles.savedVehicleSwitchButtonText}>
+                                    {isActiveVehicle ? 'Active' : 'Set active'}
+                                  </Text>
+                                )}
+                              </Pressable>
+
+                              <Pressable
+                                onPress={() => handleDeleteVehicle(vehicle.id)}
+                                disabled={deleteDisabled}
+                                style={({ pressed }) => [
+                                  styles.savedVehicleDeleteButton,
+                                  deleteDisabled && styles.savedVehicleDeleteButtonDisabled,
+                                  pressed && !deleteDisabled && styles.buttonPressed,
+                                ]}
+                              >
+                                {isDeleteInProgress ? (
+                                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                                ) : (
+                                  <Ionicons name="trash-outline" size={16} color={theme.colors.textInverse} />
+                                )}
+                              </Pressable>
+                            </View>
+                          </Reanimated.View>
+                        );
+                      })}
+                    </View>
                   </View>
                 </>
               ) : (
@@ -684,7 +815,7 @@ export default function ProfileScreen() {
                       )}
 
                       {showSaveSuccessOverlay ? (
-                        <Animated.View
+                        <RNAnimated.View
                           style={[
                             styles.saveSuccessOverlay,
                             {
@@ -696,7 +827,7 @@ export default function ProfileScreen() {
                             <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
                             <Text style={styles.saveButtonText}>{saveSuccessLabel}</Text>
                           </View>
-                        </Animated.View>
+                        </RNAnimated.View>
                       ) : null}
                     </View>
                   </Pressable>
@@ -873,6 +1004,58 @@ export default function ProfileScreen() {
             </View>
           </View>
         </GestureHandlerRootView>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={pendingVehicleDeletion !== null}
+        onRequestClose={closeDeleteVehicleModal}
+      >
+        <View style={styles.deleteModalContainer}>
+          <Pressable style={styles.deleteModalBackdrop} onPress={closeDeleteVehicleModal} />
+          <View style={styles.deleteModalCard}>
+            <Text style={styles.deleteModalTitle}>Delete Vehicle?</Text>
+            <Text style={styles.deleteModalBody}>
+              {pendingVehicleDeletion
+                ? `${pendingVehicleDeletion.label} will be removed from your garage.`
+                : 'This vehicle will be removed from your garage.'}
+            </Text>
+            <Text style={styles.deleteModalNote}>This action cannot be undone.</Text>
+
+            <Pressable
+              onPress={confirmDeleteVehicle}
+              disabled={!pendingVehicleDeletion || Boolean(deletingVehicleId)}
+              style={({ pressed }) => [
+                styles.deleteModalPrimaryButton,
+                (!pendingVehicleDeletion || Boolean(deletingVehicleId)) &&
+                  styles.deleteModalPrimaryButtonDisabled,
+                pressed &&
+                  pendingVehicleDeletion &&
+                  !deletingVehicleId &&
+                  styles.buttonPressed,
+              ]}
+            >
+              {pendingVehicleDeletion && deletingVehicleId === pendingVehicleDeletion.id ? (
+                <ActivityIndicator size="small" color={theme.colors.textInverse} />
+              ) : (
+                <Text style={styles.deleteModalPrimaryText}>Delete Vehicle</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={closeDeleteVehicleModal}
+              disabled={Boolean(deletingVehicleId)}
+              style={({ pressed }) => [
+                styles.deleteModalSecondaryButton,
+                deletingVehicleId && styles.deleteModalSecondaryButtonDisabled,
+                pressed && !deletingVehicleId && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.deleteModalSecondaryText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <Modal
@@ -1223,6 +1406,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.35,
   },
+  currentVehicleStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  currentVehicleStatusText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   currentVehiclePicker: {
     borderRadius: 999,
     borderWidth: 1,
@@ -1242,6 +1435,95 @@ const styles = StyleSheet.create({
     color: theme.colors.accentGreenMuted,
     fontSize: 12,
     fontWeight: '600',
+  },
+  savedVehiclesSection: {
+    marginBottom: 14,
+  },
+  savedVehiclesTitle: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 8,
+  },
+  savedVehiclesList: {
+    gap: 8,
+  },
+  savedVehicleCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  savedVehicleCardPrimary: {
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.surfaceBrand,
+  },
+  savedVehicleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  savedVehicleName: {
+    flex: 1,
+    color: theme.colors.accentGreen,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  savedVehiclePrimaryBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.surfaceBrandSoft,
+  },
+  savedVehiclePrimaryBadgeText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  savedVehicleActionsRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  savedVehicleSwitchButton: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 10,
+    backgroundColor: theme.colors.buttonPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedVehicleSwitchButtonDisabled: {
+    backgroundColor: theme.colors.surfaceDisabled,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
+  },
+  savedVehicleSwitchButtonText: {
+    color: theme.colors.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  savedVehicleDeleteButton: {
+    width: 40,
+    minHeight: 36,
+    borderRadius: 10,
+    backgroundColor: theme.colors.textDanger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedVehicleDeleteButtonDisabled: {
+    opacity: 0.5,
   },
   emptyVehicleState: {
     borderRadius: 12,
@@ -1612,6 +1894,73 @@ const styles = StyleSheet.create({
     color: theme.colors.textInverse,
     fontSize: 14,
     fontWeight: '700',
+  },
+  deleteModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+  },
+  deleteModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.surfaceOverlay,
+  },
+  deleteModalCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surface,
+    padding: 18,
+  },
+  deleteModalTitle: {
+    color: theme.colors.accentGreen,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  deleteModalBody: {
+    marginTop: 10,
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  deleteModalNote: {
+    marginTop: 8,
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deleteModalPrimaryButton: {
+    marginTop: 14,
+    borderRadius: 12,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.textDanger,
+  },
+  deleteModalPrimaryButtonDisabled: {
+    opacity: 0.65,
+  },
+  deleteModalPrimaryText: {
+    color: theme.colors.textInverse,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  deleteModalSecondaryButton: {
+    marginTop: 8,
+    borderRadius: 12,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  deleteModalSecondaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteModalSecondaryText: {
+    color: theme.colors.textSubtle,
+    fontSize: 14,
+    fontWeight: '600',
   },
   upgradeModalContainer: {
     flex: 1,

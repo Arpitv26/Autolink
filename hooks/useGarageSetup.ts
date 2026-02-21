@@ -138,7 +138,10 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     user && !savingVehicle && !hasMaxVehicleLimitReached && requiresProForAdditionalVehicles
   );
 
-  const loadSavedVehicles = useCallback(async (): Promise<void> => {
+  const loadSavedVehicles = useCallback(
+    async (options?: { silent?: boolean }): Promise<void> => {
+      const silent = options?.silent ?? false;
+
     if (!user) {
       setSavedVehicles([]);
       setYearState('');
@@ -148,7 +151,9 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       return;
     }
 
-    setLoadingSavedVehicles(true);
+      if (!silent) {
+        setLoadingSavedVehicles(true);
+      }
     setError(null);
 
     const { data, error: fetchError } = await supabase
@@ -176,7 +181,9 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
 
     setSavedVehicles(mapped);
     setLoadingSavedVehicles(false);
-  }, [user]);
+    },
+    [user]
+  );
 
   const loadProfileEntitlement = useCallback(async (): Promise<void> => {
     if (!user) {
@@ -348,7 +355,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
           throw new Error('Could not switch active vehicle.');
         }
 
-        await loadSavedVehicles();
+        await loadSavedVehicles({ silent: true });
         setSuccessMessage('Active vehicle switched.');
         return true;
       } catch (switchErr) {
