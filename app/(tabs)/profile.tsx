@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -16,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
+import { useProfileIdentity } from '../../hooks/useProfileIdentity';
 import { theme } from '../../lib/theme';
 
 type DropdownOption = {
@@ -25,6 +27,7 @@ type DropdownOption = {
 
 type DropdownKey = 'year' | 'make' | 'model';
 type SaveUiState = 'idle' | 'saving' | 'success';
+type ProfileSection = 'vehicles' | 'posts' | 'favorites';
 
 type ActiveDropdown = {
   title: string;
@@ -82,7 +85,7 @@ function DropdownField({
 }
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const {
     year,
     yearOptions,
@@ -90,6 +93,7 @@ export default function ProfileScreen() {
     models,
     selectedMakeId,
     selectedModelId,
+    savedVehicles,
     primaryVehicle,
     loadingMakes,
     loadingModels,
@@ -107,18 +111,53 @@ export default function ProfileScreen() {
 
   const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
   const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
+  const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
   const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
   const [saveButtonWidth, setSaveButtonWidth] = useState(0);
   const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandledSuccessRef = useRef<string | null>(null);
   const saveSuccessTranslateX = useRef(new Animated.Value(0)).current;
+  const {
+    username: profileUsername,
+    displayName: profileDisplayName,
+    avatarUrl: profileAvatarUrl,
+    error: profileIdentityError,
+  } = useProfileIdentity(user);
 
   const accountInitials = useMemo(() => {
-    const raw = user?.email?.split('@')[0] ?? 'AU';
+    const raw = profileDisplayName || profileUsername || user?.email?.split('@')[0] || 'AU';
     const compact = raw.replace(/[^a-zA-Z]/g, '');
     if (!compact) return 'AU';
     return compact.slice(0, 2).toUpperCase();
-  }, [user?.email]);
+  }, [profileDisplayName, profileUsername, user?.email]);
+
+  const displayName = useMemo(() => {
+    const fromProfile = profileDisplayName.trim();
+    if (fromProfile.length > 0) return fromProfile;
+
+    const fromMetadata =
+      typeof user?.user_metadata?.full_name === 'string'
+        ? user.user_metadata.full_name
+        : typeof user?.user_metadata?.name === 'string'
+          ? user.user_metadata.name
+          : null;
+    if (fromMetadata && fromMetadata.trim().length > 0) return fromMetadata.trim();
+
+    return user?.email?.split('@')[0] ?? 'AutoLink Driver';
+  }, [profileDisplayName, user]);
+
+  const usernameHandle = useMemo(() => {
+    if (profileUsername.trim().length > 0) return profileUsername.trim().toLowerCase();
+    const fallback = user?.email?.split('@')[0] ?? 'driver';
+    return fallback.toLowerCase();
+  }, [profileUsername, user?.email]);
+
+  const profileBio = useMemo(() => {
+    const fromMetadata = typeof user?.user_metadata?.bio === 'string' ? user.user_metadata.bio : '';
+    const trimmed = fromMetadata.trim();
+    if (trimmed.length > 0) return trimmed;
+    return 'Car enthusiast on AutoLink';
+  }, [user]);
 
   const selectedMake = useMemo(
     () => makes.find((item) => item.makeId === selectedMakeId) ?? null,
@@ -273,172 +312,257 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>Profile</Text>
-        <Text style={styles.pageSubtitle}>Manage your account and garage.</Text>
-
-        <View style={[styles.card, styles.accountCard]}>
-          <View style={styles.accountRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{accountInitials}</Text>
-            </View>
-            <View style={styles.accountDetails}>
-              <Text style={styles.accountTitle}>Account</Text>
-              <View style={styles.emailRow}>
-                <Ionicons name="mail-outline" size={14} color={theme.colors.accentGreenMuted} />
-                <Text numberOfLines={1} style={styles.accountEmail}>
-                  {user?.email ?? 'Signed-in account'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
+        <View style={styles.topBar}>
+          <View style={styles.topBarSpacer} />
+          <Text style={styles.topHandle}>@{usernameHandle}</Text>
           <Pressable
-            onPress={() => router.push('/profile-data')}
-            style={({ pressed }) => [styles.dataButton, pressed && styles.buttonPressed]}
+            onPress={() => router.push('/settings')}
+            style={({ pressed }) => [styles.settingsIconButton, pressed && styles.buttonPressed]}
           >
-            <View style={styles.dataButtonLeft}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.accentGreenMuted} />
-              <Text style={styles.dataButtonText}>Data & Personal Info</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.iconSubtle} />
+            <Ionicons name="settings-outline" size={18} color={theme.colors.accentGreen} />
           </Pressable>
         </View>
 
-        <View style={[styles.card, styles.garageCard]}>
-          <View style={styles.sectionHeaderRow}>
-            <MaterialCommunityIcons name="car-outline" size={19} color={theme.colors.accentGreen} />
-            <Text style={styles.sectionTitle}>Garage</Text>
-          </View>
-          <Text style={styles.sectionHint}>
-            Your primary vehicle is used across AI, planner, and feed.
-          </Text>
-
-          {loadingSavedVehicles ? (
-            <View style={styles.inlineRow}>
-              <ActivityIndicator color={theme.colors.accentGreen} />
-              <Text style={styles.inlineText}>Loading saved vehicle...</Text>
-            </View>
-          ) : primaryVehicle ? (
-            <View style={styles.primaryVehicleCard}>
-              <View style={styles.primaryLabelRow}>
-                <View style={styles.primaryDot} />
-                <Text style={styles.primaryLabel}>Primary vehicle</Text>
-              </View>
-              <Text style={styles.primaryText}>
-                {primaryVehicle.year} {primaryVehicle.make} {primaryVehicle.model}
-              </Text>
-            </View>
-          ) : null}
-
-          <DropdownField
-            label="Model Year"
-            valueLabel={year.length === 4 ? year : null}
-            placeholder="Select year"
-            onPress={() => openDropdown('year')}
-          />
-
-          <DropdownField
-            label="Make"
-            valueLabel={selectedMake?.makeName ?? null}
-            placeholder={
-              loadingMakes
-                ? 'Loading makes...'
-                : year.length === 4
-                  ? 'Select make'
-                  : 'Select year first'
-            }
-            disabled={year.length !== 4 || loadingMakes}
-            onPress={() => openDropdown('make')}
-          />
-
-          <DropdownField
-            label="Model"
-            valueLabel={selectedModel?.modelName ?? null}
-            placeholder={
-              loadingModels
-                ? 'Loading models...'
-                : selectedMakeId
-                  ? 'Select model'
-                  : 'Select make first'
-            }
-            disabled={!selectedMakeId || loadingModels}
-            onPress={() => openDropdown('model')}
-          />
-
-          <Pressable
-            onPress={handleSaveVehicle}
-            disabled={!canSaveVehicle || saveUiState === 'success'}
-            style={({ pressed }) => [
-              styles.saveButtonPressable,
-              !canSaveVehicle && styles.saveButtonDisabled,
-              pressed && canSaveVehicle && saveUiState !== 'success' && styles.buttonPressed,
-            ]}
-          >
-            <View
-              style={styles.saveButton}
-              onLayout={(event) => {
-                const measuredWidth = event.nativeEvent.layout.width;
-                if (measuredWidth > 0 && measuredWidth !== saveButtonWidth) {
-                  setSaveButtonWidth(measuredWidth);
-                }
-              }}
-            >
-              {saveUiState === 'saving' ? (
-                <ActivityIndicator color={theme.colors.textInverse} />
+        <View style={styles.identitySection}>
+          <View style={styles.identityTopRow}>
+            <View style={styles.avatarCircleLarge}>
+              {profileAvatarUrl ? (
+                <Image source={{ uri: profileAvatarUrl }} style={styles.avatarImageLarge} />
               ) : (
-                <Text style={styles.saveButtonText}>Save Vehicle</Text>
+                <Text style={styles.avatarTextLarge}>{accountInitials}</Text>
               )}
-
-              {showSaveSuccessOverlay ? (
-                <Animated.View
-                  style={[
-                    styles.saveSuccessOverlay,
-                    {
-                      transform: [{ translateX: saveSuccessTranslateX }],
-                    },
-                  ]}
-                >
-                  <View style={styles.saveSuccessRow}>
-                    <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
-                    <Text style={styles.saveButtonText}>Vehicle Saved</Text>
-                  </View>
-                </Animated.View>
-              ) : null}
             </View>
-          </Pressable>
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </View>
-
-        <View style={styles.proCard}>
-          <View style={styles.proHeaderRow}>
-            <Ionicons name="sparkles-outline" size={14} color={theme.colors.brandProIcon} />
-            <Text style={styles.proTitle}>Multiple Vehicles</Text>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO</Text>
+            <View style={styles.statsInlineRow}>
+              <View style={styles.statInlineItem}>
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Posts</Text>
+              </View>
+              <View style={styles.statInlineItem}>
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Friends</Text>
+              </View>
+              <View style={styles.statInlineItem}>
+                <Text style={styles.statValue}>{savedVehicles.length}</Text>
+                <Text style={styles.statLabel}>Vehicles</Text>
+              </View>
             </View>
           </View>
-          <Text style={styles.proBodyText}>
-            Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between multiple cars.
-          </Text>
+          <Text style={styles.identityName}>{displayName}</Text>
+          <Text style={styles.identitySubtext}>{profileBio}</Text>
 
-          <Pressable disabled style={styles.proCtaDisabled}>
-            <Ionicons name="add" size={18} color={theme.colors.textProCta} />
-            <Text style={styles.proCtaText}>
-              {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
-            </Text>
-          </Pressable>
+          <View style={styles.identityActionsRow}>
+            <Pressable
+              onPress={() => router.push('/profile-data')}
+              style={({ pressed }) => [styles.identityActionButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.identityActionText}>Edit Profile</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setActiveSection('posts')}
+              style={({ pressed }) => [styles.identityActionButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.identityActionText}>Share Profile</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <Pressable
-          onPress={() => void signOut()}
-          style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]}
-        >
-          <Ionicons name="log-out-outline" size={16} color={theme.colors.textDangerStrong} />
-          <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
+        <View style={styles.profileTabsBar}>
+          <Pressable
+            onPress={() => setActiveSection('vehicles')}
+            style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
+          >
+            <Text
+              style={[
+                styles.profileTabLabel,
+                activeSection === 'vehicles' && styles.profileTabLabelActive,
+              ]}
+            >
+              Vehicles
+            </Text>
+            {activeSection === 'vehicles' ? <View style={styles.profileTabUnderline} /> : null}
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveSection('posts')}
+            style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
+          >
+            <Text
+              style={[
+                styles.profileTabLabel,
+                activeSection === 'posts' && styles.profileTabLabelActive,
+              ]}
+            >
+              Posts
+            </Text>
+            {activeSection === 'posts' ? <View style={styles.profileTabUnderline} /> : null}
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveSection('favorites')}
+            style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
+          >
+            <Text
+              style={[
+                styles.profileTabLabel,
+                activeSection === 'favorites' && styles.profileTabLabelActive,
+              ]}
+            >
+              Favorites
+            </Text>
+            {activeSection === 'favorites' ? <View style={styles.profileTabUnderline} /> : null}
+          </Pressable>
+        </View>
+        <View style={styles.sectionDivider} />
 
-        <Text style={styles.footerText}>AutoLink v1.0 - Phase 1</Text>
+        {activeSection === 'vehicles' ? (
+          <>
+            <View style={[styles.card, styles.garageCard]}>
+              <View style={styles.sectionHeaderRow}>
+                <MaterialCommunityIcons name="car-outline" size={19} color={theme.colors.accentGreen} />
+                <Text style={styles.sectionTitle}>Garage</Text>
+              </View>
+              <Text style={styles.sectionHint}>
+                Your primary vehicle is used across AI, planner, and feed.
+              </Text>
+
+              {loadingSavedVehicles ? (
+                <View style={styles.inlineRow}>
+                  <ActivityIndicator color={theme.colors.accentGreen} />
+                  <Text style={styles.inlineText}>Loading saved vehicle...</Text>
+                </View>
+              ) : primaryVehicle ? (
+                <View style={styles.primaryVehicleCard}>
+                  <View style={styles.primaryLabelRow}>
+                    <View style={styles.primaryDot} />
+                    <Text style={styles.primaryLabel}>Primary vehicle</Text>
+                  </View>
+                  <Text style={styles.primaryText}>
+                    {primaryVehicle.year} {primaryVehicle.make} {primaryVehicle.model}
+                  </Text>
+                </View>
+              ) : null}
+
+              <DropdownField
+                label="Model Year"
+                valueLabel={year.length === 4 ? year : null}
+                placeholder="Select year"
+                onPress={() => openDropdown('year')}
+              />
+
+              <DropdownField
+                label="Make"
+                valueLabel={selectedMake?.makeName ?? null}
+                placeholder={
+                  loadingMakes
+                    ? 'Loading makes...'
+                    : year.length === 4
+                      ? 'Select make'
+                      : 'Select year first'
+                }
+                disabled={year.length !== 4 || loadingMakes}
+                onPress={() => openDropdown('make')}
+              />
+
+              <DropdownField
+                label="Model"
+                valueLabel={selectedModel?.modelName ?? null}
+                placeholder={
+                  loadingModels
+                    ? 'Loading models...'
+                    : selectedMakeId
+                      ? 'Select model'
+                      : 'Select make first'
+                }
+                disabled={!selectedMakeId || loadingModels}
+                onPress={() => openDropdown('model')}
+              />
+
+              <Pressable
+                onPress={handleSaveVehicle}
+                disabled={!canSaveVehicle || saveUiState === 'success'}
+                style={({ pressed }) => [
+                  styles.saveButtonPressable,
+                  !canSaveVehicle && styles.saveButtonDisabled,
+                  pressed && canSaveVehicle && saveUiState !== 'success' && styles.buttonPressed,
+                ]}
+              >
+                <View
+                  style={styles.saveButton}
+                  onLayout={(event) => {
+                    const measuredWidth = event.nativeEvent.layout.width;
+                    if (measuredWidth > 0 && measuredWidth !== saveButtonWidth) {
+                      setSaveButtonWidth(measuredWidth);
+                    }
+                  }}
+                >
+                  {saveUiState === 'saving' ? (
+                    <ActivityIndicator color={theme.colors.textInverse} />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save Vehicle</Text>
+                  )}
+
+                  {showSaveSuccessOverlay ? (
+                    <Animated.View
+                      style={[
+                        styles.saveSuccessOverlay,
+                        {
+                          transform: [{ translateX: saveSuccessTranslateX }],
+                        },
+                      ]}
+                    >
+                      <View style={styles.saveSuccessRow}>
+                        <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
+                        <Text style={styles.saveButtonText}>Vehicle Saved</Text>
+                      </View>
+                    </Animated.View>
+                  ) : null}
+                </View>
+              </Pressable>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {profileIdentityError ? <Text style={styles.errorText}>{profileIdentityError}</Text> : null}
+            </View>
+
+            <View style={styles.proCard}>
+              <View style={styles.proHeaderRow}>
+                <Ionicons name="sparkles-outline" size={14} color={theme.colors.brandProIcon} />
+                <Text style={styles.proTitle}>Multiple Vehicles</Text>
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+              </View>
+              <Text style={styles.proBodyText}>
+                Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between multiple cars.
+              </Text>
+
+              <Pressable disabled style={styles.proCtaDisabled}>
+                <Ionicons name="add" size={18} color={theme.colors.textProCta} />
+                <Text style={styles.proCtaText}>
+                  {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : activeSection === 'posts' ? (
+          <View style={[styles.card, styles.emptyCard]}>
+            <Ionicons name="images-outline" size={42} color={theme.colors.iconSubtle} />
+            <Text style={styles.emptyTitle}>No posts yet</Text>
+            <Text style={styles.emptyText}>
+              Share your first build update once feed posting goes live.
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.card, styles.emptyCard]}>
+            <Ionicons name="heart-outline" size={42} color={theme.colors.iconSubtle} />
+            <Text style={styles.emptyTitle}>No favorites yet</Text>
+            <Text style={styles.emptyText}>
+              Save parts, posts, or builds to quickly revisit them later.
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.footerInline}>
+          <Ionicons name="information-circle-outline" size={13} color={theme.colors.textMuted} />
+          <Text style={styles.footerText}>Social features are rolling out in upcoming phases.</Text>
+        </View>
       </ScrollView>
 
       <Modal
@@ -507,18 +631,31 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 120,
   },
-  pageTitle: {
-    fontSize: 40,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  topBarSpacer: {
+    width: 36,
+    height: 36,
+  },
+  topHandle: {
+    fontSize: 22,
     fontWeight: '700',
     color: theme.colors.accentGreen,
-    letterSpacing: -0.8,
+    letterSpacing: -0.3,
   },
-  pageSubtitle: {
-    marginTop: 2,
-    marginBottom: 18,
-    color: theme.colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '500',
+  settingsIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -536,6 +673,119 @@ const styles = StyleSheet.create({
   accountCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.borderSoft,
+  },
+  identitySection: {
+    marginBottom: 8,
+  },
+  identityTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  avatarCircleLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.colors.brandAvatar,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImageLarge: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarTextLarge: {
+    color: theme.colors.textInverse,
+    fontWeight: '700',
+    fontSize: 22,
+  },
+  statsInlineRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 2,
+  },
+  statInlineItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 64,
+  },
+  identityName: {
+    marginTop: 12,
+    color: theme.colors.accentGreen,
+    fontSize: 26,
+    fontWeight: '700',
+    lineHeight: 30,
+  },
+  identitySubtext: {
+    marginTop: 3,
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  identityActionsRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  identityActionButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  identityActionText: {
+    color: theme.colors.textSubtle,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  statValue: {
+    color: theme.colors.accentGreen,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 26,
+  },
+  statLabel: {
+    marginTop: 1,
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  profileTabsBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderDefault,
+    marginBottom: 2,
+  },
+  profileTab: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 7,
+  },
+  profileTabLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  profileTabLabelActive: {
+    color: theme.colors.accentGreen,
+    fontWeight: '700',
+  },
+  profileTabUnderline: {
+    marginTop: 6,
+    height: 2,
+    borderRadius: 2,
+    width: '78%',
+    backgroundColor: theme.colors.accentGreen,
+  },
+  sectionDivider: {
+    height: 10,
   },
   garageCard: {
     backgroundColor: theme.colors.surfaceBrandSoft,
@@ -795,25 +1045,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  logoutButton: {
-    minHeight: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.borderDangerSoft,
-    backgroundColor: theme.colors.surfaceDangerSoft,
+  emptyCard: {
+    minHeight: 240,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    flexDirection: 'row',
+    paddingHorizontal: 24,
   },
-  logoutText: {
-    color: theme.colors.textDangerStrong,
-    fontSize: 20,
-    fontWeight: '500',
+  emptyTitle: {
+    marginTop: 10,
+    color: theme.colors.accentGreen,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  emptyText: {
+    marginTop: 4,
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  footerInline: {
+    marginTop: 2,
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   footerText: {
-    marginTop: 10,
-    textAlign: 'center',
     color: theme.colors.textMuted,
     fontSize: 12,
   },

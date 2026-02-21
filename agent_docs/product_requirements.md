@@ -41,7 +41,8 @@ User Story: &quot;As a new user, I want to sign in quickly and tell the app what
 Acceptance Criteria:
   - Sign in with Google (Apple OAuth is optional for MVP)
   - Profile setup: username, display name, avatar
-  - Garage: add up to 5 vehicles (year/make/model validated via NHTSA)
+  - Garage: 1 free vehicle included; up to 4 additional vehicles unlocked via Pro (year/make/model validated via NHTSA)
+  - Pro vehicle paywall can bundle additional premium features later (to be defined)
   - Vehicle context auto-injected into every AI query
   - Profile page shows user&apos;s builds and posts
 Tech: Supabase Auth (Google OAuth) + NHTSA vPIC API

@@ -3,13 +3,20 @@ import React, { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../hooks/useAuth';
 
 function RootNavigator() {
-  const { session, initializing } = useAuth();
+  const { session, initializing, profileSetupError } = useAuth();
   const segments = useSegments();
 
   useEffect(() => {
     if (initializing) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+
+    if (profileSetupError) {
+      if (!inAuthGroup) {
+        router.replace('/(auth)/sign-in');
+      }
+      return;
+    }
 
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
@@ -18,11 +25,18 @@ function RootNavigator() {
     if (session && inAuthGroup) {
       router.replace('/(tabs)/ai');
     }
-  }, [initializing, segments, session]);
+  }, [initializing, profileSetupError, segments, session]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen
+        name="settings"
+        options={{
+          animation: 'slide_from_right',
+          gestureEnabled: true,
+        }}
+      />
       <Stack.Screen
         name="profile-data"
         options={{

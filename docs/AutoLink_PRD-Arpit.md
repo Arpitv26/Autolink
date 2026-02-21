@@ -393,7 +393,8 @@ Acceptance Criteria
 
 Sign in with Google or Apple (no email/password form)
 Profile setup flow: username, display name, avatar
-Garage: add up to 5 vehicles (year/make/model validated against NHTSA API)
+Garage: 1 free vehicle included; up to 4 additional vehicles unlocked via Pro (year/make/model validated against NHTSA API)
+Pro vehicle paywall can bundle additional premium features later (to be defined)
 Vehicle context injected into every AI query automatically
 Profile page shows user's builds and posts
 
@@ -1014,4 +1015,3 @@ Week 12
 This PRD defines exactly what AutoLink is, who it's for, and what the MVP needs to do. Next step: Technical Design Document to map out HOW you'll build it. Good luck, Arpit — AutoLink has real potential!
 
 AutoLink PRD • MVP v1.0 • February 2026 • Prepared for Arpit Verma @ UBC
-

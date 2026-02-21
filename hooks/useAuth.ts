@@ -19,6 +19,8 @@ type UseAuthResult = {
   session: Session | null;
   user: User | null;
   initializing: boolean;
+  profileSetupError: string | null;
+  clearProfileSetupError: () => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -64,6 +66,23 @@ function useProvideAuth(): UseAuthResult {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
+  const [profileSetupError, setProfileSetupError] = useState<string | null>(null);
+
+  const syncUserProfile = useCallback(async (nextUser: User | null): Promise<void> => {
+    if (!nextUser) {
+      setProfileSetupError(null);
+      return;
+    }
+
+    try {
+      await ensureUserProfile(nextUser);
+      setProfileSetupError(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Could not initialize your profile.';
+      setProfileSetupError(message);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,9 +97,7 @@ function useProvideAuth(): UseAuthResult {
       } else {
         setSession(data.session ?? null);
         setUser(data.session?.user ?? null);
-        if (data.session?.user) {
-          void ensureUserProfile(data.session.user).catch(() => {});
-        }
+        await syncUserProfile(data.session?.user ?? null);
       }
 
       setInitializing(false);
@@ -92,9 +109,7 @@ function useProvideAuth(): UseAuthResult {
       (_event, nextSession) => {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
-        if (nextSession?.user) {
-          void ensureUserProfile(nextSession.user).catch(() => {});
-        }
+        void syncUserProfile(nextSession?.user ?? null);
       }
     );
 
@@ -102,6 +117,10 @@ function useProvideAuth(): UseAuthResult {
       isMounted = false;
       subscription.subscription.unsubscribe();
     };
+  }, [syncUserProfile]);
+
+  const clearProfileSetupError = useCallback((): void => {
+    setProfileSetupError(null);
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<void> => {
@@ -165,8 +184,24 @@ function useProvideAuth(): UseAuthResult {
   }, []);
 
   return useMemo(
-    () => ({ session, user, initializing, signInWithGoogle, signOut }),
-    [initializing, session, signInWithGoogle, signOut, user]
+    () => ({
+      session,
+      user,
+      initializing,
+      profileSetupError,
+      clearProfileSetupError,
+      signInWithGoogle,
+      signOut,
+    }),
+    [
+      clearProfileSetupError,
+      initializing,
+      profileSetupError,
+      session,
+      signInWithGoogle,
+      signOut,
+      user,
+    ]
   );
 }
 

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,98 +12,27 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
+import { useProfileDataForm } from '../hooks/useProfileDataForm';
 import { theme } from '../lib/theme';
-
-type ProfileRow = {
-  display_name: string | null;
-  username: string;
-};
 
 export default function ProfileDataScreen() {
   const { user } = useAuth();
-  const [displayName, setDisplayName] = useState<string>('');
-  const [pronouns, setPronouns] = useState<string>('');
-  const [username, setUsername] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const loadData = useCallback(async (): Promise<void> => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    const { data, error: profileError } = await supabase
-      .from('profiles')
-      .select('display_name, username')
-      .eq('id', user.id)
-      .maybeSingle<ProfileRow>();
-
-    if (profileError) {
-      setError('Could not load profile data.');
-      setLoading(false);
-      return;
-    }
-
-    setDisplayName(data?.display_name ?? '');
-    setUsername(data?.username ?? '');
-    setPronouns(
-      typeof user.user_metadata?.pronouns === 'string' ? user.user_metadata.pronouns : ''
-    );
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  const handleSave = useCallback(async (): Promise<void> => {
-    if (!user) {
-      setError('No active user session.');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    const trimmedName = displayName.trim();
-    const trimmedPronouns = pronouns.trim();
-
-    const { error: updateProfileError } = await supabase
-      .from('profiles')
-      .update({
-        display_name: trimmedName.length > 0 ? trimmedName : null,
-      })
-      .eq('id', user.id);
-
-    if (updateProfileError) {
-      setSaving(false);
-      setError('Could not save profile details.');
-      return;
-    }
-
-    const { error: updateUserError } = await supabase.auth.updateUser({
-      data: {
-        pronouns: trimmedPronouns.length > 0 ? trimmedPronouns : null,
-      },
-    });
-
-    if (updateUserError) {
-      setSaving(false);
-      setError('Saved name, but could not save pronouns.');
-      return;
-    }
-
-    setSaving(false);
-    setSuccess('Profile details saved.');
-  }, [displayName, pronouns, user]);
+  const {
+    displayName,
+    pronouns,
+    bio,
+    avatarUrl,
+    username,
+    loading,
+    saving,
+    error,
+    success,
+    setDisplayName,
+    setPronouns,
+    setBio,
+    setAvatarUrl,
+    save,
+  } = useProfileDataForm(user);
 
   const handleBack = useCallback((): void => {
     if (router.canGoBack()) {
@@ -123,8 +52,8 @@ export default function ProfileDataScreen() {
           <Ionicons name="arrow-back" size={20} color={theme.colors.textSlate} />
         </Pressable>
 
-        <Text style={styles.title}>Data & Personal Info</Text>
-        <Text style={styles.subtitle}>Manage your standard profile information.</Text>
+        <Text style={styles.title}>Edit Profile</Text>
+        <Text style={styles.subtitle}>Manage your public profile information.</Text>
 
         {loading ? (
           <View style={styles.loadingRow}>
@@ -156,6 +85,29 @@ export default function ProfileDataScreen() {
               style={styles.input}
             />
 
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              value={bio}
+              onChangeText={setBio}
+              placeholder="Tell people about your build style"
+              placeholderTextColor={theme.colors.textSignInHelper}
+              style={[styles.input, styles.inputMultiline]}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <Text style={styles.label}>Profile Photo URL</Text>
+            <TextInput
+              value={avatarUrl}
+              onChangeText={setAvatarUrl}
+              placeholder="https://..."
+              placeholderTextColor={theme.colors.textSignInHelper}
+              style={styles.input}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
             <Text style={styles.label}>Pronouns (optional)</Text>
             <TextInput
               value={pronouns}
@@ -168,7 +120,7 @@ export default function ProfileDataScreen() {
         )}
 
         <Pressable
-          onPress={() => void handleSave()}
+          onPress={() => void save()}
           disabled={loading || saving}
           style={({ pressed }) => [
             styles.saveButton,
@@ -259,6 +211,9 @@ const styles = StyleSheet.create({
   inputReadOnly: {
     backgroundColor: theme.colors.surfaceMuted,
     color: theme.colors.textFieldReadOnly,
+  },
+  inputMultiline: {
+    minHeight: 80,
   },
   saveButton: {
     marginTop: 14,

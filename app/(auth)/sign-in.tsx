@@ -4,13 +4,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { theme } from '../../lib/theme';
 
 export default function SignInScreen() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, profileSetupError, clearProfileSetupError } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleGoogleSignIn = useCallback(async (): Promise<void> => {
     setIsSigningIn(true);
     setErrorMessage(null);
+    clearProfileSetupError();
 
     try {
       await signInWithGoogle();
@@ -21,7 +22,7 @@ export default function SignInScreen() {
     } finally {
       setIsSigningIn(false);
     }
-  }, [signInWithGoogle]);
+  }, [clearProfileSetupError, signInWithGoogle]);
 
   return (
     <View style={styles.container}>
@@ -46,6 +47,7 @@ export default function SignInScreen() {
       </Pressable>
       <Text style={styles.helper}>You will be redirected to Google, then back to the app.</Text>
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+      {profileSetupError ? <Text style={styles.error}>{profileSetupError}</Text> : null}
     </View>
   );
 }

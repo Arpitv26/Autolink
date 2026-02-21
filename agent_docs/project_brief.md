@@ -64,7 +64,7 @@ What is Mocked vs Real (Demo Strategy)
 ---
 Security Rules
 Row Level Security (RLS) enabled on ALL Supabase tables — no exceptions
-Users can only read/write their own data (enforced by RLS, not app logic)
+Public profile discovery fields may be readable; private and user-owned data must remain owner-only via RLS (enforced by policies, not app logic)
 OpenAI API key lives ONLY in Supabase Edge Function environment variables
 No passwords ever stored — Google OAuth only for MVP
 Image uploads: validate file type and size before uploading
