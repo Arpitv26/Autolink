@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,12 +26,13 @@ export default function ProfileDataScreen() {
     username,
     loading,
     saving,
+    avatarUploading,
     error,
     success,
     setDisplayName,
     setPronouns,
     setBio,
-    setAvatarUrl,
+    pickAvatarFromLibrary,
     save,
   } = useProfileDataForm(user);
 
@@ -49,7 +51,7 @@ export default function ProfileDataScreen() {
           onPress={handleBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.buttonPressed]}
         >
-          <Ionicons name="arrow-back" size={20} color={theme.colors.textSlate} />
+          <Ionicons name="arrow-back" size={20} color={theme.colors.accentGreen} />
         </Pressable>
 
         <Text style={styles.title}>Edit Profile</Text>
@@ -57,7 +59,7 @@ export default function ProfileDataScreen() {
 
         {loading ? (
           <View style={styles.loadingRow}>
-            <ActivityIndicator color={theme.colors.textHeading} />
+            <ActivityIndicator color={theme.colors.accentGreen} />
             <Text style={styles.loadingText}>Loading profile...</Text>
           </View>
         ) : (
@@ -97,16 +99,35 @@ export default function ProfileDataScreen() {
               textAlignVertical="top"
             />
 
-            <Text style={styles.label}>Profile Photo URL</Text>
-            <TextInput
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-              placeholder="https://..."
-              placeholderTextColor={theme.colors.textSignInHelper}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <Text style={styles.label}>Profile Photo</Text>
+            <View style={styles.avatarPickerRow}>
+              <View style={styles.avatarPreviewCircle}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatarPreviewImage} />
+                ) : (
+                  <Ionicons name="person-outline" size={22} color={theme.colors.accentGreenMuted} />
+                )}
+              </View>
+              <View style={styles.avatarPickerCopy}>
+                <Text style={styles.avatarPickerTitle}>Choose from camera roll</Text>
+                <Text style={styles.avatarPickerHint}>Square photos look best.</Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => void pickAvatarFromLibrary()}
+              disabled={loading || saving || avatarUploading}
+              style={({ pressed }) => [
+                styles.avatarPickButton,
+                (loading || saving || avatarUploading) && styles.saveButtonDisabled,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              {avatarUploading ? (
+                <ActivityIndicator color={theme.colors.textInverse} />
+              ) : (
+                <Text style={styles.avatarPickButtonText}>Choose Photo</Text>
+              )}
+            </Pressable>
 
             <Text style={styles.label}>Pronouns (optional)</Text>
             <TextInput
@@ -166,7 +187,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 28,
     fontWeight: '700',
-    color: theme.colors.textHeading,
+    color: theme.colors.accentGreen,
     letterSpacing: -0.3,
   },
   subtitle: {
@@ -182,7 +203,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 8,
-    color: theme.colors.textSlate,
+    color: theme.colors.accentGreen,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -194,7 +215,7 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 6,
     marginTop: 4,
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentGreen,
     fontWeight: '600',
     fontSize: 13,
   },
@@ -206,14 +227,66 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 8,
     backgroundColor: theme.colors.surface,
-    color: theme.colors.textHeading,
+    color: theme.colors.accentGreen,
   },
   inputReadOnly: {
     backgroundColor: theme.colors.surfaceMuted,
-    color: theme.colors.textFieldReadOnly,
+    color: theme.colors.accentGreen,
   },
   inputMultiline: {
     minHeight: 80,
+  },
+  avatarPickerRow: {
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surfaceMuted,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatarPreviewCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderInput,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPickerCopy: {
+    flex: 1,
+  },
+  avatarPickerTitle: {
+    color: theme.colors.accentGreen,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  avatarPickerHint: {
+    marginTop: 2,
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+  },
+  avatarPickButton: {
+    marginBottom: 8,
+    backgroundColor: theme.colors.buttonPrimary,
+    borderRadius: 10,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPickButtonText: {
+    color: theme.colors.textInverse,
+    fontWeight: '700',
+    fontSize: 14,
   },
   saveButton: {
     marginTop: 14,

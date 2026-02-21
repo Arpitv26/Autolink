@@ -5,7 +5,11 @@ import { ensureUserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
 
 const START_YEAR = 1985;
+const FREE_PLAN_VEHICLE_LIMIT = 1;
 const MAX_VEHICLES = 5;
+const DEV_BYPASS_PRO_VEHICLE_PAYWALL = parseBooleanEnvFlag(
+  process.env.EXPO_PUBLIC_DEV_BYPASS_PRO_VEHICLE_PAYWALL
+);
 
 type SavedVehicle = {
   id: string;
@@ -42,6 +46,10 @@ type UseGarageSetupResult = {
   successMessage: string | null;
   canSaveVehicle: boolean;
   canAddVehicle: boolean;
+  canOpenProUpgrade: boolean;
+  isProMember: boolean;
+  devBypassProVehiclePaywall: boolean;
+  requiresProForAdditionalVehicles: boolean;
   hasFreeVehicleLimitReached: boolean;
   hasMaxVehicleLimitReached: boolean;
   setYear: (value: string) => void;
@@ -51,6 +59,23 @@ type UseGarageSetupResult = {
   addSelectedVehicle: () => Promise<void>;
   deleteVehicle: (vehicleId: string) => Promise<void>;
 };
+
+function parseBooleanEnvFlag(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getIsProMember(user: User | null): boolean {
+  if (!user) return false;
+
+  const rawValue: unknown = user.user_metadata?.is_pro;
+  if (typeof rawValue === 'boolean') return rawValue;
+  if (typeof rawValue === 'number') return rawValue === 1;
+  if (typeof rawValue === 'string') return parseBooleanEnvFlag(rawValue);
+
+  return false;
+}
 
 function buildYearOptions(): string[] {
   const currentYear = new Date().getFullYear();
@@ -94,8 +119,11 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     [savedVehicles]
   );
 
-  const hasFreeVehicleLimitReached = savedVehicles.length >= 1;
+  const isProMember = getIsProMember(user);
+  const canUseProVehicles = isProMember || DEV_BYPASS_PRO_VEHICLE_PAYWALL;
+  const hasFreeVehicleLimitReached = savedVehicles.length >= FREE_PLAN_VEHICLE_LIMIT;
   const hasMaxVehicleLimitReached = savedVehicles.length >= MAX_VEHICLES;
+  const requiresProForAdditionalVehicles = hasFreeVehicleLimitReached && !canUseProVehicles;
   const canSaveVehicle = Boolean(
     user &&
       year.length === 4 &&
@@ -109,7 +137,11 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       selectedMake &&
       selectedModel &&
       !savingVehicle &&
-      !hasMaxVehicleLimitReached
+      !hasMaxVehicleLimitReached &&
+      !requiresProForAdditionalVehicles
+  );
+  const canOpenProUpgrade = Boolean(
+    user && !savingVehicle && !hasMaxVehicleLimitReached && requiresProForAdditionalVehicles
   );
 
   const loadSavedVehicles = useCallback(async (): Promise<void> => {
@@ -346,6 +378,11 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       return;
     }
 
+    if (requiresProForAdditionalVehicles) {
+      setError('Upgrade to Pro to add more than 1 vehicle.');
+      return;
+    }
+
     if (!selectedMake || !selectedModel || year.length !== 4) {
       setError('Select year, make, and model before adding.');
       return;
@@ -400,6 +437,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     hasMaxVehicleLimitReached,
     loadSavedVehicles,
     primaryVehicle,
+    requiresProForAdditionalVehicles,
     selectedMake,
     selectedModel,
     user,
@@ -497,6 +535,10 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     successMessage,
     canSaveVehicle,
     canAddVehicle,
+    canOpenProUpgrade,
+    isProMember,
+    devBypassProVehiclePaywall: DEV_BYPASS_PRO_VEHICLE_PAYWALL,
+    requiresProForAdditionalVehicles,
     hasFreeVehicleLimitReached,
     hasMaxVehicleLimitReached,
     setYear,

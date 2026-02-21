@@ -106,6 +106,10 @@ export default function ProfileScreen() {
     successMessage,
     canSaveVehicle,
     canAddVehicle,
+    canOpenProUpgrade,
+    isProMember,
+    devBypassProVehiclePaywall,
+    requiresProForAdditionalVehicles,
     hasMaxVehicleLimitReached,
     setYear,
     setSelectedMakeId,
@@ -120,6 +124,7 @@ export default function ProfileScreen() {
   const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [manageVehicleExpanded, setManageVehicleExpanded] = useState(false);
+  const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
   const [saveSuccessLabel, setSaveSuccessLabel] = useState('Vehicle Saved');
   const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
   const [saveButtonWidth, setSaveButtonWidth] = useState(0);
@@ -380,6 +385,10 @@ export default function ProfileScreen() {
   };
 
   const handleAddVehicle = (): void => {
+    if (requiresProForAdditionalVehicles) {
+      setShowProUpgradeModal(true);
+      return;
+    }
     void addSelectedVehicle();
   };
 
@@ -688,19 +697,25 @@ export default function ProfileScreen() {
 
                     <Pressable
                       onPress={handleAddVehicle}
-                      disabled={!canAddVehicle}
+                      disabled={!canAddVehicle && !canOpenProUpgrade}
                       style={({ pressed }) => [
                         styles.proCtaDisabled,
-                        !canAddVehicle && styles.proCtaBlocked,
+                        !canAddVehicle && !canOpenProUpgrade && styles.proCtaBlocked,
                         savingVehicle && styles.proCtaLoading,
-                        pressed && canAddVehicle && styles.buttonPressed,
+                        pressed && (canAddVehicle || canOpenProUpgrade) && styles.buttonPressed,
                       ]}
                     >
                       {savingVehicle ? (
                         <ActivityIndicator color={theme.colors.textProCta} />
                       ) : (
                         <Ionicons
-                          name={hasMaxVehicleLimitReached ? 'ban-outline' : 'add'}
+                          name={
+                            hasMaxVehicleLimitReached
+                              ? 'ban-outline'
+                              : requiresProForAdditionalVehicles
+                                ? 'lock-closed-outline'
+                                : 'add'
+                          }
                           size={18}
                           color={theme.colors.textProCta}
                         />
@@ -708,9 +723,16 @@ export default function ProfileScreen() {
                       <Text style={styles.proCtaText}>
                         {hasMaxVehicleLimitReached
                           ? 'Vehicle limit reached (5 max)'
-                          : 'Add another vehicle'}
+                          : requiresProForAdditionalVehicles
+                            ? 'Unlock Pro to add vehicles'
+                            : 'Add another vehicle'}
                       </Text>
                     </Pressable>
+                    {__DEV__ && devBypassProVehiclePaywall && !isProMember ? (
+                      <Text style={styles.proDebugText}>
+                        Dev bypass active: additional vehicles are unlocked on this build.
+                      </Text>
+                    ) : null}
                   </View>
                 </>
               ) : null}
@@ -830,6 +852,44 @@ export default function ProfileScreen() {
             </View>
           </View>
         </GestureHandlerRootView>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showProUpgradeModal}
+        onRequestClose={() => setShowProUpgradeModal(false)}
+      >
+        <View style={styles.upgradeModalContainer}>
+          <Pressable style={styles.upgradeModalBackdrop} onPress={() => setShowProUpgradeModal(false)} />
+          <View style={styles.upgradeModalCard}>
+            <View style={styles.upgradeModalHeaderRow}>
+              <Text style={styles.upgradeModalTitle}>Pro Required</Text>
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            </View>
+            <Text style={styles.upgradeModalBody}>
+              Free plan includes 1 vehicle. Upgrade to Pro to save and switch between multiple
+              vehicles.
+            </Text>
+            <Pressable
+              onPress={() => setShowProUpgradeModal(false)}
+              style={({ pressed }) => [
+                styles.upgradeModalPrimaryButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.upgradeModalPrimaryText}>Upgrade Flow Coming Soon</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowProUpgradeModal(false)}
+              style={({ pressed }) => [styles.upgradeModalSecondaryButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.upgradeModalSecondaryText}>Not now</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1394,6 +1454,11 @@ const styles = StyleSheet.create({
   proCtaBlocked: {
     opacity: 0.62,
   },
+  proDebugText: {
+    marginTop: 8,
+    color: theme.colors.textMuted,
+    fontSize: 12,
+  },
   emptyCard: {
     minHeight: 240,
     alignItems: 'center',
@@ -1526,5 +1591,65 @@ const styles = StyleSheet.create({
     color: theme.colors.textInverse,
     fontSize: 14,
     fontWeight: '700',
+  },
+  upgradeModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+  },
+  upgradeModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.surfaceOverlay,
+  },
+  upgradeModalCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.borderPro,
+    backgroundColor: theme.colors.surfacePro,
+    padding: 18,
+  },
+  upgradeModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  upgradeModalTitle: {
+    color: theme.colors.textProTitle,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  upgradeModalBody: {
+    marginTop: 10,
+    color: theme.colors.textProBody,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  upgradeModalPrimaryButton: {
+    marginTop: 14,
+    borderRadius: 12,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.brandProIcon,
+  },
+  upgradeModalPrimaryText: {
+    color: theme.colors.textIconDark,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  upgradeModalSecondaryButton: {
+    marginTop: 8,
+    borderRadius: 12,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.borderProCta,
+    backgroundColor: theme.colors.surfaceProCta,
+  },
+  upgradeModalSecondaryText: {
+    color: theme.colors.textProCta,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
