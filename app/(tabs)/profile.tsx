@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   Modal,
   Pressable,
   ScrollView,
@@ -106,9 +107,11 @@ export default function ProfileScreen() {
 
   const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
   const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
+  const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
+  const [saveButtonWidth, setSaveButtonWidth] = useState(0);
   const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandledSuccessRef = useRef<string | null>(null);
-  const saveColorProgress = useRef(new Animated.Value(0)).current;
+  const saveSuccessTranslateX = useRef(new Animated.Value(0)).current;
 
   const accountInitials = useMemo(() => {
     const raw = user?.email?.split('@')[0] ?? 'AU';
@@ -218,6 +221,8 @@ export default function ProfileScreen() {
         clearTimeout(saveSuccessTimeoutRef.current);
       }
       setSaveUiState('saving');
+      setShowSaveSuccessOverlay(false);
+      saveSuccessTranslateX.setValue(0);
       lastHandledSuccessRef.current = null;
       return;
     }
@@ -225,53 +230,45 @@ export default function ProfileScreen() {
     if (successMessage && successMessage !== lastHandledSuccessRef.current) {
       lastHandledSuccessRef.current = successMessage;
       setSaveUiState('success');
-
-      Animated.timing(saveColorProgress, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: false,
-      }).start();
+      setShowSaveSuccessOverlay(true);
+      saveSuccessTranslateX.stopAnimation();
+      saveSuccessTranslateX.setValue(0);
 
       if (saveSuccessTimeoutRef.current) {
         clearTimeout(saveSuccessTimeoutRef.current);
       }
 
       saveSuccessTimeoutRef.current = setTimeout(() => {
-        Animated.timing(saveColorProgress, {
-          toValue: 0,
-          duration: 260,
-          useNativeDriver: false,
+        Animated.timing(saveSuccessTranslateX, {
+          toValue: -(saveButtonWidth || 320),
+          duration: 520,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
         }).start(() => {
+          setShowSaveSuccessOverlay(false);
+          saveSuccessTranslateX.setValue(0);
           setSaveUiState('idle');
         });
         saveSuccessTimeoutRef.current = null;
-      }, 1800);
+      }, 900);
       return;
     }
 
     if (error) {
       setSaveUiState('idle');
-      Animated.timing(saveColorProgress, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: false,
-      }).start();
+      setShowSaveSuccessOverlay(false);
+      saveSuccessTranslateX.setValue(0);
       return;
     }
 
     if (saveUiState !== 'success') {
       setSaveUiState('idle');
     }
-  }, [error, saveColorProgress, saveUiState, savingVehicle, successMessage]);
+  }, [error, saveButtonWidth, saveSuccessTranslateX, saveUiState, savingVehicle, successMessage]);
 
   const handleSaveVehicle = (): void => {
     void saveSelectedVehicle();
   };
-
-  const saveButtonBackgroundColor = saveColorProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.colors.buttonPrimary, theme.colors.buttonSuccess],
-  });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -279,7 +276,7 @@ export default function ProfileScreen() {
         <Text style={styles.pageTitle}>Profile</Text>
         <Text style={styles.pageSubtitle}>Manage your account and garage.</Text>
 
-        <View style={styles.card}>
+        <View style={[styles.card, styles.accountCard]}>
           <View style={styles.accountRow}>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarText}>{accountInitials}</Text>
@@ -287,7 +284,7 @@ export default function ProfileScreen() {
             <View style={styles.accountDetails}>
               <Text style={styles.accountTitle}>Account</Text>
               <View style={styles.emailRow}>
-                <Ionicons name="mail-outline" size={14} color={theme.colors.textSecondary} />
+                <Ionicons name="mail-outline" size={14} color={theme.colors.accentGreenMuted} />
                 <Text numberOfLines={1} style={styles.accountEmail}>
                   {user?.email ?? 'Signed-in account'}
                 </Text>
@@ -300,16 +297,16 @@ export default function ProfileScreen() {
             style={({ pressed }) => [styles.dataButton, pressed && styles.buttonPressed]}
           >
             <View style={styles.dataButtonLeft}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.textSecondary} />
+              <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.accentGreenMuted} />
               <Text style={styles.dataButtonText}>Data & Personal Info</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={theme.colors.iconSubtle} />
           </Pressable>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, styles.garageCard]}>
           <View style={styles.sectionHeaderRow}>
-            <MaterialCommunityIcons name="car-outline" size={19} color={theme.colors.textIconDark} />
+            <MaterialCommunityIcons name="car-outline" size={19} color={theme.colors.accentGreen} />
             <Text style={styles.sectionTitle}>Garage</Text>
           </View>
           <Text style={styles.sectionHint}>
@@ -318,7 +315,7 @@ export default function ProfileScreen() {
 
           {loadingSavedVehicles ? (
             <View style={styles.inlineRow}>
-              <ActivityIndicator color={theme.colors.textIconDark} />
+              <ActivityIndicator color={theme.colors.accentGreen} />
               <Text style={styles.inlineText}>Loading saved vehicle...</Text>
             </View>
           ) : primaryVehicle ? (
@@ -370,25 +367,44 @@ export default function ProfileScreen() {
 
           <Pressable
             onPress={handleSaveVehicle}
-            disabled={!canSaveVehicle}
+            disabled={!canSaveVehicle || saveUiState === 'success'}
             style={({ pressed }) => [
               styles.saveButtonPressable,
               !canSaveVehicle && styles.saveButtonDisabled,
-              pressed && canSaveVehicle && styles.buttonPressed,
+              pressed && canSaveVehicle && saveUiState !== 'success' && styles.buttonPressed,
             ]}
           >
-            <Animated.View style={[styles.saveButton, { backgroundColor: saveButtonBackgroundColor }]}>
+            <View
+              style={styles.saveButton}
+              onLayout={(event) => {
+                const measuredWidth = event.nativeEvent.layout.width;
+                if (measuredWidth > 0 && measuredWidth !== saveButtonWidth) {
+                  setSaveButtonWidth(measuredWidth);
+                }
+              }}
+            >
               {saveUiState === 'saving' ? (
                 <ActivityIndicator color={theme.colors.textInverse} />
-              ) : saveUiState === 'success' ? (
-                <View style={styles.saveSuccessRow}>
-                  <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
-                  <Text style={styles.saveButtonText}>Vehicle Saved</Text>
-                </View>
               ) : (
                 <Text style={styles.saveButtonText}>Save Vehicle</Text>
               )}
-            </Animated.View>
+
+              {showSaveSuccessOverlay ? (
+                <Animated.View
+                  style={[
+                    styles.saveSuccessOverlay,
+                    {
+                      transform: [{ translateX: saveSuccessTranslateX }],
+                    },
+                  ]}
+                >
+                  <View style={styles.saveSuccessRow}>
+                    <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
+                    <Text style={styles.saveButtonText}>Vehicle Saved</Text>
+                  </View>
+                </Animated.View>
+              ) : null}
+            </View>
           </Pressable>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -407,7 +423,7 @@ export default function ProfileScreen() {
           </Text>
 
           <Pressable disabled style={styles.proCtaDisabled}>
-            <Ionicons name="add" size={18} color={theme.colors.borderDefault} />
+            <Ionicons name="add" size={18} color={theme.colors.textProCta} />
             <Text style={styles.proCtaText}>
               {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
             </Text>
@@ -494,7 +510,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 40,
     fontWeight: '700',
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentGreen,
     letterSpacing: -0.8,
   },
   pageSubtitle: {
@@ -516,6 +532,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
+  },
+  accountCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderSoft,
+  },
+  garageCard: {
+    backgroundColor: theme.colors.surfaceBrandSoft,
+    borderColor: theme.colors.borderLight,
   },
   accountRow: {
     flexDirection: 'row',
@@ -542,7 +566,7 @@ const styles = StyleSheet.create({
   accountTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentGreen,
   },
   emailRow: {
     marginTop: 3,
@@ -572,7 +596,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   dataButtonText: {
-    color: theme.colors.textSubtle,
+    color: theme.colors.accentGreen,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -582,7 +606,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   sectionTitle: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentGreen,
     fontSize: 27,
     fontWeight: '700',
   },
@@ -600,6 +624,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceBrand,
     borderWidth: 1,
     borderColor: theme.colors.borderBrandSoft,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.accentGreen,
     paddingVertical: 11,
     paddingHorizontal: 12,
   },
@@ -612,10 +638,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: theme.colors.brandSecondary,
+    backgroundColor: theme.colors.accentGreenMuted,
   },
   primaryLabel: {
-    color: theme.colors.brandSecondary,
+    color: theme.colors.accentGreenMuted,
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.4,
@@ -624,7 +650,7 @@ const styles = StyleSheet.create({
   primaryText: {
     marginTop: 4,
     marginLeft: 13,
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentGreen,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -632,7 +658,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   fieldLabel: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.accentGreenMuted,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 6,
@@ -653,7 +679,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceDisabled,
   },
   dropdownValue: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.accentGreen,
     fontSize: 17,
     fontWeight: '600',
     flex: 1,
@@ -672,8 +698,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   saveButton: {
+    backgroundColor: theme.colors.buttonPrimary,
     borderRadius: 12,
     minHeight: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  saveSuccessOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.buttonSaveSuccess,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -702,7 +737,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inlineText: {
-    color: theme.colors.textFieldReadOnly,
+    color: theme.colors.accentGreenMuted,
     fontSize: 14,
   },
   proCard: {
@@ -811,7 +846,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalTitle: {
-    color: theme.colors.textIconDark,
+    color: theme.colors.accentGreen,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -852,7 +887,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   modalOptionLabelSelected: {
-    color: theme.colors.brandDeep,
+    color: theme.colors.accentGreen,
     fontWeight: '700',
   },
   modalEmptyText: {

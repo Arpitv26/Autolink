@@ -28,8 +28,8 @@ export default function TabsLayout() {
         headerShown: false,
         animation: 'shift',
         sceneStyle: { backgroundColor: theme.colors.appBackground },
-        tabBarActiveTintColor: theme.colors.brandPrimary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarActiveTintColor: theme.colors.accentGreenMuted,
+        tabBarInactiveTintColor: theme.colors.tabLabelInactive,
         tabBarActiveBackgroundColor: theme.colors.surfaceBrand,
         tabBarStyle: {
           height: 70,
@@ -48,7 +48,7 @@ export default function TabsLayout() {
           fontWeight: '600',
           marginBottom: 1,
         },
-        tabBarIcon: ({ color, focused }) => renderTabIcon(route.name, color, focused),
+        tabBarIcon: ({ focused }) => renderTabIcon(route.name, theme.colors.accentGreen, focused),
       })}
     >
       <Tabs.Screen name="ai" options={{ title: 'AI' }} />
