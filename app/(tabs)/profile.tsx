@@ -114,6 +114,7 @@ export default function ProfileScreen() {
     setYear,
     setSelectedMakeId,
     setSelectedModelId,
+    setPrimaryVehicle,
     saveSelectedVehicle,
     addSelectedVehicle,
     deleteVehicle,
@@ -209,6 +210,23 @@ export default function ProfileScreen() {
     });
   }, [primaryVehicle?.id, savedVehicles]);
 
+  const handleSelectVehicle = useCallback(
+    (vehicleId: string): void => {
+      if (vehicleId === primaryVehicle?.id) {
+        setActiveVehicleId(vehicleId);
+        return;
+      }
+
+      void (async () => {
+        const didSwitch = await setPrimaryVehicle(vehicleId);
+        if (didSwitch) {
+          setActiveVehicleId(vehicleId);
+        }
+      })();
+    },
+    [primaryVehicle?.id, setPrimaryVehicle]
+  );
+
   const vehicleOptionsForDropdown = useMemo<DropdownOption[]>(
     () =>
       savedVehicles.map((item) => ({
@@ -249,7 +267,7 @@ export default function ProfileScreen() {
           value: activeVehicle?.id ?? null,
           options: vehicleOptionsForDropdown,
           emptyText: 'No saved vehicles.',
-          onSelect: (value: string) => setActiveVehicleId(value),
+          onSelect: (value: string) => handleSelectVehicle(value),
         };
       case 'year':
         return {
@@ -287,7 +305,7 @@ export default function ProfileScreen() {
     modelOptionsForDropdown,
     selectedMakeId,
     selectedModelId,
-    setActiveVehicleId,
+    handleSelectVehicle,
     setSelectedMakeId,
     setSelectedModelId,
     setYear,
@@ -297,6 +315,7 @@ export default function ProfileScreen() {
   ]);
 
   const openDropdown = (key: DropdownKey): void => {
+    if (savingVehicle) return;
     if (key === 'make' && (year.length !== 4 || loadingMakes)) return;
     if (key === 'model' && (!selectedMakeId || loadingModels)) return;
     setActiveDropdownKey(key);
@@ -333,6 +352,8 @@ export default function ProfileScreen() {
         setSaveSuccessLabel('Vehicle Added');
       } else if (normalizedMessage.includes('deleted')) {
         setSaveSuccessLabel('Vehicle Deleted');
+      } else if (normalizedMessage.includes('switched')) {
+        setSaveSuccessLabel('Vehicle Switched');
       } else {
         setSaveSuccessLabel('Vehicle Saved');
       }
@@ -521,11 +542,11 @@ export default function ProfileScreen() {
                     <Text style={styles.currentVehicleLabel}>Current vehicle</Text>
                     <Pressable
                       onPress={() => openDropdown('vehicle')}
-                      disabled={savedVehicles.length < 2}
+                      disabled={savedVehicles.length < 2 || savingVehicle}
                       style={({ pressed }) => [
                         styles.currentVehiclePicker,
-                        savedVehicles.length < 2 && styles.currentVehiclePickerDisabled,
-                        pressed && savedVehicles.length >= 2 && styles.buttonPressed,
+                        (savedVehicles.length < 2 || savingVehicle) && styles.currentVehiclePickerDisabled,
+                        pressed && savedVehicles.length >= 2 && !savingVehicle && styles.buttonPressed,
                       ]}
                     >
                       <Text style={styles.currentVehiclePickerText}>
@@ -793,7 +814,7 @@ export default function ProfileScreen() {
                     const optionRow = (
                       <Pressable
                         key={optionKey}
-                        disabled={Boolean(deletingVehicleId)}
+                        disabled={Boolean(deletingVehicleId) || savingVehicle}
                         onPress={() => {
                           activeDropdown.onSelect(option.value);
                           closeDropdown();
@@ -801,7 +822,7 @@ export default function ProfileScreen() {
                         style={({ pressed }) => [
                           styles.modalOption,
                           isSelected && styles.modalOptionSelected,
-                          pressed && !deletingVehicleId && styles.buttonPressed,
+                          pressed && !deletingVehicleId && !savingVehicle && styles.buttonPressed,
                         ]}
                       >
                         <Text
@@ -827,10 +848,10 @@ export default function ProfileScreen() {
                         renderRightActions={() => (
                           <Pressable
                             onPress={() => handleDeleteVehicle(option.value)}
-                            disabled={Boolean(deletingVehicleId)}
+                            disabled={Boolean(deletingVehicleId) || savingVehicle}
                             style={({ pressed }) => [
                               styles.modalDeleteAction,
-                              pressed && !deletingVehicleId && styles.buttonPressed,
+                              pressed && !deletingVehicleId && !savingVehicle && styles.buttonPressed,
                             ]}
                           >
                             {isDeleteInProgress ? (

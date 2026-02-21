@@ -59,6 +59,7 @@ type UseGarageSetupResult = {
   setYear: (value: string) => void;
   setSelectedMakeId: (value: number | null) => void;
   setSelectedModelId: (value: number | null) => void;
+  setPrimaryVehicle: (vehicleId: string) => Promise<boolean>;
   saveSelectedVehicle: () => Promise<void>;
   addSelectedVehicle: () => Promise<void>;
   deleteVehicle: (vehicleId: string) => Promise<void>;
@@ -303,6 +304,62 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     setSelectedModelIdState(value);
     setSuccessMessage(null);
   }, []);
+
+  const setPrimaryVehicle = useCallback(
+    async (vehicleId: string): Promise<boolean> => {
+      if (!user) {
+        setError('Sign in before switching vehicles.');
+        return false;
+      }
+
+      const targetVehicle = savedVehicles.find((item) => item.id === vehicleId);
+      if (!targetVehicle) {
+        setError('Selected vehicle was not found.');
+        return false;
+      }
+
+      if (targetVehicle.isPrimary) {
+        return true;
+      }
+
+      setSavingVehicle(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      try {
+        await ensureUserProfile(user);
+
+        const { error: clearPrimaryError } = await supabase
+          .from('vehicles')
+          .update({ is_primary: false })
+          .eq('user_id', user.id);
+
+        if (clearPrimaryError) {
+          throw new Error('Could not switch active vehicle.');
+        }
+
+        const { error: setPrimaryError } = await supabase
+          .from('vehicles')
+          .update({ is_primary: true })
+          .eq('id', vehicleId)
+          .eq('user_id', user.id);
+
+        if (setPrimaryError) {
+          throw new Error('Could not switch active vehicle.');
+        }
+
+        await loadSavedVehicles();
+        setSuccessMessage('Active vehicle switched.');
+        return true;
+      } catch (switchErr) {
+        setError(switchErr instanceof Error ? switchErr.message : 'Could not switch active vehicle.');
+        return false;
+      } finally {
+        setSavingVehicle(false);
+      }
+    },
+    [loadSavedVehicles, savedVehicles, user]
+  );
 
   const saveSelectedVehicle = useCallback(async (): Promise<void> => {
     if (!user) {
@@ -561,6 +618,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     setYear,
     setSelectedMakeId,
     setSelectedModelId,
+    setPrimaryVehicle,
     saveSelectedVehicle,
     addSelectedVehicle,
     deleteVehicle,
