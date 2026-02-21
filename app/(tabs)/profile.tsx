@@ -15,6 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
@@ -100,14 +101,18 @@ export default function ProfileScreen() {
     loadingModels,
     loadingSavedVehicles,
     savingVehicle,
+    deletingVehicleId,
     error,
     successMessage,
     canSaveVehicle,
+    canAddVehicle,
+    hasMaxVehicleLimitReached,
     setYear,
     setSelectedMakeId,
     setSelectedModelId,
     saveSelectedVehicle,
     addSelectedVehicle,
+    deleteVehicle,
   } = useGarageSetup(user);
 
   const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
@@ -318,7 +323,14 @@ export default function ProfileScreen() {
 
     if (successMessage && successMessage !== lastHandledSuccessRef.current) {
       lastHandledSuccessRef.current = successMessage;
-      setSaveSuccessLabel(successMessage.includes('added') ? 'Vehicle Added' : 'Vehicle Saved');
+      const normalizedMessage = successMessage.toLowerCase();
+      if (normalizedMessage.includes('added')) {
+        setSaveSuccessLabel('Vehicle Added');
+      } else if (normalizedMessage.includes('deleted')) {
+        setSaveSuccessLabel('Vehicle Deleted');
+      } else {
+        setSaveSuccessLabel('Vehicle Saved');
+      }
       setSaveUiState('success');
       setShowSaveSuccessOverlay(true);
       saveSuccessTranslateX.stopAnimation();
@@ -369,6 +381,10 @@ export default function ProfileScreen() {
 
   const handleAddVehicle = (): void => {
     void addSelectedVehicle();
+  };
+
+  const handleDeleteVehicle = (vehicleId: string): void => {
+    void deleteVehicle(vehicleId);
   };
 
   return (
@@ -672,19 +688,28 @@ export default function ProfileScreen() {
 
                     <Pressable
                       onPress={handleAddVehicle}
-                      disabled={savingVehicle}
+                      disabled={!canAddVehicle}
                       style={({ pressed }) => [
                         styles.proCtaDisabled,
+                        !canAddVehicle && styles.proCtaBlocked,
                         savingVehicle && styles.proCtaLoading,
-                        pressed && !savingVehicle && styles.buttonPressed,
+                        pressed && canAddVehicle && styles.buttonPressed,
                       ]}
                     >
                       {savingVehicle ? (
                         <ActivityIndicator color={theme.colors.textProCta} />
                       ) : (
-                        <Ionicons name="add" size={18} color={theme.colors.textProCta} />
+                        <Ionicons
+                          name={hasMaxVehicleLimitReached ? 'ban-outline' : 'add'}
+                          size={18}
+                          color={theme.colors.textProCta}
+                        />
                       )}
-                      <Text style={styles.proCtaText}>Add another vehicle</Text>
+                      <Text style={styles.proCtaText}>
+                        {hasMaxVehicleLimitReached
+                          ? 'Vehicle limit reached (5 max)'
+                          : 'Add another vehicle'}
+                      </Text>
                     </Pressable>
                   </View>
                 </>
@@ -721,51 +746,90 @@ export default function ProfileScreen() {
         visible={activeDropdown !== null}
         onRequestClose={closeDropdown}
       >
-        <View style={styles.modalContainer}>
-          <Pressable style={styles.modalBackdrop} onPress={closeDropdown} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{activeDropdown?.title}</Text>
-              <Pressable onPress={closeDropdown} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
-              </Pressable>
-            </View>
+        <GestureHandlerRootView style={styles.modalGestureRoot}>
+          <View style={styles.modalContainer}>
+            <Pressable style={styles.modalBackdrop} onPress={closeDropdown} />
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{activeDropdown?.title}</Text>
+                <Pressable onPress={closeDropdown} style={styles.modalCloseButton}>
+                  <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+                </Pressable>
+              </View>
 
-            {activeDropdown && activeDropdown.options.length > 0 ? (
-              <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
-                {activeDropdown.options.map((option) => {
-                  const isSelected = activeDropdown.value === option.value;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => {
-                        activeDropdown.onSelect(option.value);
-                        closeDropdown();
-                      }}
-                      style={({ pressed }) => [
-                        styles.modalOption,
-                        isSelected && styles.modalOptionSelected,
-                        pressed && styles.buttonPressed,
-                      ]}
-                    >
-                      <Text
-                        style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelSelected]}
-                        numberOfLines={1}
+              {activeDropdown && activeDropdown.options.length > 0 ? (
+                <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
+                  {activeDropdownKey === 'vehicle' && activeDropdown.options.length > 1 ? (
+                    <Text style={styles.modalSwipeHint}>Swipe left on a vehicle to delete it.</Text>
+                  ) : null}
+                  {activeDropdown.options.map((option) => {
+                    const isSelected = activeDropdown.value === option.value;
+                    const optionKey = `${activeDropdown.title}-${option.value}-${option.label}`;
+                    const isVehicleOption = activeDropdownKey === 'vehicle';
+                    const isDeleteInProgress = deletingVehicleId === option.value;
+
+                    const optionRow = (
+                      <Pressable
+                        key={optionKey}
+                        disabled={Boolean(deletingVehicleId)}
+                        onPress={() => {
+                          activeDropdown.onSelect(option.value);
+                          closeDropdown();
+                        }}
+                        style={({ pressed }) => [
+                          styles.modalOption,
+                          isSelected && styles.modalOptionSelected,
+                          pressed && !deletingVehicleId && styles.buttonPressed,
+                        ]}
                       >
-                        {option.label}
-                      </Text>
-                      {isSelected ? (
-                        <Ionicons name="checkmark" size={18} color={theme.colors.brandPrimary} />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <Text style={styles.modalEmptyText}>{activeDropdown?.emptyText}</Text>
-            )}
+                        <Text
+                          style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelSelected]}
+                          numberOfLines={1}
+                        >
+                          {option.label}
+                        </Text>
+                        {isSelected ? (
+                          <Ionicons name="checkmark" size={18} color={theme.colors.brandPrimary} />
+                        ) : null}
+                      </Pressable>
+                    );
+
+                    if (!isVehicleOption || activeDropdown.options.length <= 1) {
+                      return optionRow;
+                    }
+
+                    return (
+                      <Swipeable
+                        key={optionKey}
+                        overshootRight={false}
+                        renderRightActions={() => (
+                          <Pressable
+                            onPress={() => handleDeleteVehicle(option.value)}
+                            disabled={Boolean(deletingVehicleId)}
+                            style={({ pressed }) => [
+                              styles.modalDeleteAction,
+                              pressed && !deletingVehicleId && styles.buttonPressed,
+                            ]}
+                          >
+                            {isDeleteInProgress ? (
+                              <ActivityIndicator color={theme.colors.textInverse} />
+                            ) : (
+                              <Text style={styles.modalDeleteActionText}>Delete</Text>
+                            )}
+                          </Pressable>
+                        )}
+                      >
+                        {optionRow}
+                      </Swipeable>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                <Text style={styles.modalEmptyText}>{activeDropdown?.emptyText}</Text>
+              )}
+            </View>
           </View>
-        </View>
+        </GestureHandlerRootView>
       </Modal>
     </SafeAreaView>
   );
@@ -1327,6 +1391,9 @@ const styles = StyleSheet.create({
   proCtaLoading: {
     opacity: 0.72,
   },
+  proCtaBlocked: {
+    opacity: 0.62,
+  },
   emptyCard: {
     minHeight: 240,
     alignItems: 'center',
@@ -1360,6 +1427,9 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     transform: [{ scale: 0.985 }],
+  },
+  modalGestureRoot: {
+    flex: 1,
   },
   modalContainer: {
     flex: 1,
@@ -1405,6 +1475,11 @@ const styles = StyleSheet.create({
   modalListContent: {
     paddingBottom: 8,
   },
+  modalSwipeHint: {
+    marginTop: 2,
+    color: theme.colors.textMuted,
+    fontSize: 12,
+  },
   modalOption: {
     minHeight: 44,
     paddingHorizontal: 12,
@@ -1436,5 +1511,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 18,
     marginBottom: 8,
+  },
+  modalDeleteAction: {
+    marginTop: 8,
+    marginLeft: 8,
+    minWidth: 84,
+    borderRadius: 10,
+    backgroundColor: theme.colors.textDanger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  modalDeleteActionText: {
+    color: theme.colors.textInverse,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

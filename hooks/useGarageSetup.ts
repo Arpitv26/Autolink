@@ -5,6 +5,7 @@ import { ensureUserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
 
 const START_YEAR = 1985;
+const MAX_VEHICLES = 5;
 
 type SavedVehicle = {
   id: string;
@@ -36,15 +37,19 @@ type UseGarageSetupResult = {
   loadingModels: boolean;
   loadingSavedVehicles: boolean;
   savingVehicle: boolean;
+  deletingVehicleId: string | null;
   error: string | null;
   successMessage: string | null;
   canSaveVehicle: boolean;
+  canAddVehicle: boolean;
   hasFreeVehicleLimitReached: boolean;
+  hasMaxVehicleLimitReached: boolean;
   setYear: (value: string) => void;
   setSelectedMakeId: (value: number | null) => void;
   setSelectedModelId: (value: number | null) => void;
   saveSelectedVehicle: () => Promise<void>;
   addSelectedVehicle: () => Promise<void>;
+  deleteVehicle: (vehicleId: string) => Promise<void>;
 };
 
 function buildYearOptions(): string[] {
@@ -69,6 +74,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [loadingSavedVehicles, setLoadingSavedVehicles] = useState<boolean>(true);
   const [savingVehicle, setSavingVehicle] = useState<boolean>(false);
+  const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -89,12 +95,21 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
   );
 
   const hasFreeVehicleLimitReached = savedVehicles.length >= 1;
+  const hasMaxVehicleLimitReached = savedVehicles.length >= MAX_VEHICLES;
   const canSaveVehicle = Boolean(
     user &&
       year.length === 4 &&
       selectedMake &&
       selectedModel &&
       !savingVehicle
+  );
+  const canAddVehicle = Boolean(
+    user &&
+      year.length === 4 &&
+      selectedMake &&
+      selectedModel &&
+      !savingVehicle &&
+      !hasMaxVehicleLimitReached
   );
 
   const loadSavedVehicles = useCallback(async (): Promise<void> => {
@@ -326,6 +341,11 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       return;
     }
 
+    if (hasMaxVehicleLimitReached) {
+      setError(`Vehicle limit reached. You can save up to ${MAX_VEHICLES} vehicles.`);
+      return;
+    }
+
     if (!selectedMake || !selectedModel || year.length !== 4) {
       setError('Select year, make, and model before adding.');
       return;
@@ -343,6 +363,19 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
 
     try {
       await ensureUserProfile(user);
+
+      const { count, error: countError } = await supabase
+        .from('vehicles')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (countError) {
+        throw new Error('Could not validate vehicle limit.');
+      }
+
+      if ((count ?? 0) >= MAX_VEHICLES) {
+        throw new Error(`Vehicle limit reached. You can save up to ${MAX_VEHICLES} vehicles.`);
+      }
 
       const { error: insertError } = await supabase.from('vehicles').insert({
         user_id: user.id,
@@ -363,7 +396,88 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     } finally {
       setSavingVehicle(false);
     }
-  }, [loadSavedVehicles, primaryVehicle, selectedMake, selectedModel, user, year]);
+  }, [
+    hasMaxVehicleLimitReached,
+    loadSavedVehicles,
+    primaryVehicle,
+    selectedMake,
+    selectedModel,
+    user,
+    year,
+  ]);
+
+  const deleteVehicle = useCallback(
+    async (vehicleId: string): Promise<void> => {
+      if (!user) {
+        setError('Sign in before deleting a vehicle.');
+        return;
+      }
+
+      const targetVehicle = savedVehicles.find((item) => item.id === vehicleId);
+      if (!targetVehicle) {
+        setError('Selected vehicle was not found.');
+        return;
+      }
+
+      if (savedVehicles.length <= 1) {
+        setError('You must keep at least one vehicle.');
+        return;
+      }
+
+      setDeletingVehicleId(vehicleId);
+      setError(null);
+      setSuccessMessage(null);
+
+      try {
+        await ensureUserProfile(user);
+
+        if (targetVehicle.isPrimary) {
+          const nextPrimary = savedVehicles.find((item) => item.id !== vehicleId);
+          if (!nextPrimary) {
+            throw new Error('Could not assign a new primary vehicle.');
+          }
+
+          const { error: clearPrimaryError } = await supabase
+            .from('vehicles')
+            .update({ is_primary: false })
+            .eq('id', vehicleId)
+            .eq('user_id', user.id);
+
+          if (clearPrimaryError) {
+            throw new Error('Could not update primary vehicle state.');
+          }
+
+          const { error: setPrimaryError } = await supabase
+            .from('vehicles')
+            .update({ is_primary: true })
+            .eq('id', nextPrimary.id)
+            .eq('user_id', user.id);
+
+          if (setPrimaryError) {
+            throw new Error('Could not assign a new primary vehicle.');
+          }
+        }
+
+        const { error: deleteError } = await supabase
+          .from('vehicles')
+          .delete()
+          .eq('id', vehicleId)
+          .eq('user_id', user.id);
+
+        if (deleteError) {
+          throw new Error('Could not delete vehicle.');
+        }
+
+        await loadSavedVehicles();
+        setSuccessMessage('Vehicle deleted.');
+      } catch (deleteErr) {
+        setError(deleteErr instanceof Error ? deleteErr.message : 'Could not delete vehicle.');
+      } finally {
+        setDeletingVehicleId(null);
+      }
+    },
+    [loadSavedVehicles, savedVehicles, user]
+  );
 
   return {
     year,
@@ -378,14 +492,18 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     loadingModels,
     loadingSavedVehicles,
     savingVehicle,
+    deletingVehicleId,
     error,
     successMessage,
     canSaveVehicle,
+    canAddVehicle,
     hasFreeVehicleLimitReached,
+    hasMaxVehicleLimitReached,
     setYear,
     setSelectedMakeId,
     setSelectedModelId,
     saveSelectedVehicle,
     addSelectedVehicle,
+    deleteVehicle,
   };
 }
