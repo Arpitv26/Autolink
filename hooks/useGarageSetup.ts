@@ -44,6 +44,7 @@ type UseGarageSetupResult = {
   setSelectedMakeId: (value: number | null) => void;
   setSelectedModelId: (value: number | null) => void;
   saveSelectedVehicle: () => Promise<void>;
+  addSelectedVehicle: () => Promise<void>;
 };
 
 function buildYearOptions(): string[] {
@@ -319,6 +320,51 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     }
   }, [loadSavedVehicles, primaryVehicle, selectedMake, selectedModel, user, year]);
 
+  const addSelectedVehicle = useCallback(async (): Promise<void> => {
+    if (!user) {
+      setError('Sign in before adding a vehicle.');
+      return;
+    }
+
+    if (!selectedMake || !selectedModel || year.length !== 4) {
+      setError('Select year, make, and model before adding.');
+      return;
+    }
+
+    const parsedYear = Number.parseInt(year, 10);
+    if (!Number.isFinite(parsedYear)) {
+      setError('Model year is invalid.');
+      return;
+    }
+
+    setSavingVehicle(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      await ensureUserProfile(user);
+
+      const { error: insertError } = await supabase.from('vehicles').insert({
+        user_id: user.id,
+        make: selectedMake.makeName,
+        model: selectedModel.modelName,
+        year: parsedYear,
+        is_primary: !primaryVehicle,
+      });
+
+      if (insertError) {
+        throw new Error('Could not add vehicle.');
+      }
+
+      await loadSavedVehicles();
+      setSuccessMessage('Vehicle added.');
+    } catch (saveErr) {
+      setError(saveErr instanceof Error ? saveErr.message : 'Could not add vehicle.');
+    } finally {
+      setSavingVehicle(false);
+    }
+  }, [loadSavedVehicles, primaryVehicle, selectedMake, selectedModel, user, year]);
+
   return {
     year,
     yearOptions: YEAR_OPTIONS,
@@ -340,5 +386,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     setSelectedMakeId,
     setSelectedModelId,
     saveSelectedVehicle,
+    addSelectedVehicle,
   };
 }

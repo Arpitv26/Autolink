@@ -103,11 +103,11 @@ export default function ProfileScreen() {
     error,
     successMessage,
     canSaveVehicle,
-    hasFreeVehicleLimitReached,
     setYear,
     setSelectedMakeId,
     setSelectedModelId,
     saveSelectedVehicle,
+    addSelectedVehicle,
   } = useGarageSetup(user);
 
   const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
@@ -115,6 +115,7 @@ export default function ProfileScreen() {
   const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [manageVehicleExpanded, setManageVehicleExpanded] = useState(false);
+  const [saveSuccessLabel, setSaveSuccessLabel] = useState('Vehicle Saved');
   const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
   const [saveButtonWidth, setSaveButtonWidth] = useState(0);
   const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -317,6 +318,7 @@ export default function ProfileScreen() {
 
     if (successMessage && successMessage !== lastHandledSuccessRef.current) {
       lastHandledSuccessRef.current = successMessage;
+      setSaveSuccessLabel(successMessage.includes('added') ? 'Vehicle Added' : 'Vehicle Saved');
       setSaveUiState('success');
       setShowSaveSuccessOverlay(true);
       saveSuccessTranslateX.stopAnimation();
@@ -363,6 +365,10 @@ export default function ProfileScreen() {
 
   const handleSaveVehicle = (): void => {
     void saveSelectedVehicle();
+  };
+
+  const handleAddVehicle = (): void => {
+    void addSelectedVehicle();
   };
 
   return (
@@ -569,7 +575,7 @@ export default function ProfileScreen() {
               {manageVehicleExpanded ? (
                 <>
                   <Text style={styles.manageVehicleHint}>
-                    Change your active year, make, and model.
+                    Change your active year/make/model, or add another vehicle for testing.
                   </Text>
 
                   <DropdownField
@@ -642,7 +648,7 @@ export default function ProfileScreen() {
                         >
                           <View style={styles.saveSuccessRow}>
                             <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
-                            <Text style={styles.saveButtonText}>Vehicle Saved</Text>
+                            <Text style={styles.saveButtonText}>{saveSuccessLabel}</Text>
                           </View>
                         </Animated.View>
                       ) : null}
@@ -664,11 +670,21 @@ export default function ProfileScreen() {
                       multiple cars.
                     </Text>
 
-                    <Pressable disabled style={styles.proCtaDisabled}>
-                      <Ionicons name="add" size={18} color={theme.colors.textProCta} />
-                      <Text style={styles.proCtaText}>
-                        {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
-                      </Text>
+                    <Pressable
+                      onPress={handleAddVehicle}
+                      disabled={savingVehicle}
+                      style={({ pressed }) => [
+                        styles.proCtaDisabled,
+                        savingVehicle && styles.proCtaLoading,
+                        pressed && !savingVehicle && styles.buttonPressed,
+                      ]}
+                    >
+                      {savingVehicle ? (
+                        <ActivityIndicator color={theme.colors.textProCta} />
+                      ) : (
+                        <Ionicons name="add" size={18} color={theme.colors.textProCta} />
+                      )}
+                      <Text style={styles.proCtaText}>Add another vehicle</Text>
                     </Pressable>
                   </View>
                 </>
@@ -1307,6 +1323,9 @@ const styles = StyleSheet.create({
     color: theme.colors.textProCta,
     fontSize: 16,
     fontWeight: '600',
+  },
+  proCtaLoading: {
+    opacity: 0.72,
   },
   emptyCard: {
     minHeight: 240,
