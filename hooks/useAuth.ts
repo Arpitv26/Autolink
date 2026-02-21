@@ -10,6 +10,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { ensureUserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
 
@@ -32,6 +33,7 @@ type AuthProviderProps = {
 const AUTH_CODE_PATTERN = /[?&]code=([^&]+)/;
 const ACCESS_TOKEN_PATTERN = /[?#&]access_token=([^&]+)/;
 const REFRESH_TOKEN_PATTERN = /[?#&]refresh_token=([^&]+)/;
+const AUTH_ERROR_DESCRIPTION_PATTERN = /[?#&]error_description=([^&]+)/;
 
 function getAuthCodeFromUrl(url: string): string | null {
   try {
@@ -58,6 +60,38 @@ function getTokensFromUrl(
     accessToken: decodeURIComponent(accessTokenMatch[1]),
     refreshToken: decodeURIComponent(refreshTokenMatch[1]),
   };
+}
+
+function getAuthErrorFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const searchError = parsed.searchParams.get('error_description');
+    if (searchError) return searchError;
+
+    const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+    const hashError = hashParams.get('error_description');
+    if (hashError) return hashError;
+    return null;
+  } catch {
+    const match = url.match(AUTH_ERROR_DESCRIPTION_PATTERN);
+    if (!match?.[1]) return null;
+    return decodeURIComponent(match[1]);
+  }
+}
+
+function buildOAuthRedirectUri(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/auth/callback`;
+  }
+
+  // Native must include a callback path so it matches redirect allow-list rules.
+  // - Expo Go: exp://.../--/auth/callback
+  // - Dev build / standalone: autolink://auth/callback
+  return makeRedirectUri({
+    scheme: 'autolink',
+    path: 'auth/callback',
+    preferLocalhost: false,
+  });
 }
 
 const AuthContext = createContext<UseAuthResult | null>(null);
@@ -124,10 +158,10 @@ function useProvideAuth(): UseAuthResult {
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<void> => {
-    const redirectTo = makeRedirectUri({
-      path: 'auth/callback',
-      preferLocalhost: false,
-    });
+    const redirectTo = buildOAuthRedirectUri();
+    if (__DEV__) {
+      console.log('[auth] redirectTo', redirectTo);
+    }
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -145,6 +179,12 @@ function useProvideAuth(): UseAuthResult {
     if (!authUrl) {
       throw new Error('Could not start Google sign-in. Please try again.');
     }
+    if (!authUrl.includes('/auth/v1/authorize')) {
+      throw new Error('Supabase returned an invalid OAuth URL. Check Supabase URL env config.');
+    }
+    if (__DEV__) {
+      console.log('[auth] authUrl', authUrl);
+    }
 
     const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
 
@@ -153,6 +193,22 @@ function useProvideAuth(): UseAuthResult {
         throw new Error('Google sign-in was cancelled.');
       }
       throw new Error('Google sign-in did not complete. Please try again.');
+    }
+
+    if (result.url.includes('.supabase.co')) {
+      throw new Error(
+        `OAuth callback stayed on Supabase. Configure redirect URL "${redirectTo}" and set Site URL to your app URL (not Supabase URL).`
+      );
+    }
+    if (result.url.includes('localhost')) {
+      throw new Error(
+        `OAuth redirected to localhost. Set Supabase Site URL to a real app URL (for mobile: autolink://auth/callback).`
+      );
+    }
+
+    const authError = getAuthErrorFromUrl(result.url);
+    if (authError) {
+      throw new Error(authError);
     }
 
     const code = getAuthCodeFromUrl(result.url);
@@ -167,7 +223,9 @@ function useProvideAuth(): UseAuthResult {
 
     const tokens = getTokensFromUrl(result.url);
     if (!tokens) {
-      throw new Error('Google callback did not include a usable auth session.');
+      throw new Error(
+        `Google callback did not include a usable auth session. Verify Supabase redirect allow-list includes: ${redirectTo}`
+      );
     }
 
     const { error: setSessionError } = await supabase.auth.setSession({
