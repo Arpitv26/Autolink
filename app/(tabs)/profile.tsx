@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -121,7 +122,9 @@ export default function ProfileScreen() {
     username: profileUsername,
     displayName: profileDisplayName,
     avatarUrl: profileAvatarUrl,
+    loading: profileIdentityLoading,
     error: profileIdentityError,
+    refresh: refreshProfileIdentity,
   } = useProfileIdentity(user);
 
   const accountInitials = useMemo(() => {
@@ -305,6 +308,13 @@ export default function ProfileScreen() {
     }
   }, [error, saveButtonWidth, saveSuccessTranslateX, saveUiState, savingVehicle, successMessage]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void refreshProfileIdentity();
+      return undefined;
+    }, [refreshProfileIdentity])
+  );
+
   const handleSaveVehicle = (): void => {
     void saveSelectedVehicle();
   };
@@ -349,6 +359,12 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.identityName}>{displayName}</Text>
           <Text style={styles.identitySubtext}>{profileBio}</Text>
+          {profileIdentityLoading ? (
+            <View style={styles.identityLoadingRow}>
+              <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
+              <Text style={styles.identityLoadingText}>Refreshing profile...</Text>
+            </View>
+          ) : null}
 
           <View style={styles.identityActionsRow}>
             <Pressable
@@ -723,6 +739,17 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
+  },
+  identityLoadingRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  identityLoadingText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
   identityActionsRow: {
     marginTop: 12,
