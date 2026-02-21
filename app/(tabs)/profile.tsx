@@ -26,7 +26,7 @@ type DropdownOption = {
   value: string;
 };
 
-type DropdownKey = 'year' | 'make' | 'model';
+type DropdownKey = 'vehicle' | 'year' | 'make' | 'model';
 type SaveUiState = 'idle' | 'saving' | 'success';
 type ProfileSection = 'vehicles' | 'posts' | 'favorites';
 
@@ -113,6 +113,8 @@ export default function ProfileScreen() {
   const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
   const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
   const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
+  const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
+  const [manageVehicleExpanded, setManageVehicleExpanded] = useState(false);
   const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
   const [saveButtonWidth, setSaveButtonWidth] = useState(0);
   const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -172,6 +174,39 @@ export default function ProfileScreen() {
     [models, selectedModelId]
   );
 
+  const activeVehicle = useMemo(() => {
+    if (activeVehicleId) {
+      const matchingVehicle = savedVehicles.find((item) => item.id === activeVehicleId);
+      if (matchingVehicle) {
+        return matchingVehicle;
+      }
+    }
+    return primaryVehicle;
+  }, [activeVehicleId, primaryVehicle, savedVehicles]);
+
+  useEffect(() => {
+    if (savedVehicles.length === 0) {
+      setActiveVehicleId(null);
+      return;
+    }
+
+    setActiveVehicleId((currentValue) => {
+      if (currentValue && savedVehicles.some((item) => item.id === currentValue)) {
+        return currentValue;
+      }
+      return primaryVehicle?.id ?? savedVehicles[0].id;
+    });
+  }, [primaryVehicle?.id, savedVehicles]);
+
+  const vehicleOptionsForDropdown = useMemo<DropdownOption[]>(
+    () =>
+      savedVehicles.map((item) => ({
+        label: `${item.year} ${item.make} ${item.model}`,
+        value: item.id,
+      })),
+    [savedVehicles]
+  );
+
   const yearOptionsForDropdown = useMemo<DropdownOption[]>(
     () => yearOptions.map((item) => ({ label: item, value: item })),
     [yearOptions]
@@ -197,6 +232,14 @@ export default function ProfileScreen() {
 
   const activeDropdown = useMemo<ActiveDropdown | null>(() => {
     switch (activeDropdownKey) {
+      case 'vehicle':
+        return {
+          title: 'Select vehicle',
+          value: activeVehicle?.id ?? null,
+          options: vehicleOptionsForDropdown,
+          emptyText: 'No saved vehicles.',
+          onSelect: (value: string) => setActiveVehicleId(value),
+        };
       case 'year':
         return {
           title: 'Select model year',
@@ -225,6 +268,7 @@ export default function ProfileScreen() {
         return null;
     }
   }, [
+    activeVehicle?.id,
     activeDropdownKey,
     loadingMakes,
     loadingModels,
@@ -232,9 +276,11 @@ export default function ProfileScreen() {
     modelOptionsForDropdown,
     selectedMakeId,
     selectedModelId,
+    setActiveVehicleId,
     setSelectedMakeId,
     setSelectedModelId,
     setYear,
+    vehicleOptionsForDropdown,
     year,
     yearOptionsForDropdown,
   ]);
@@ -373,12 +419,6 @@ export default function ProfileScreen() {
             >
               <Text style={styles.identityActionText}>Edit Profile</Text>
             </Pressable>
-            <Pressable
-              onPress={() => setActiveSection('posts')}
-              style={({ pressed }) => [styles.identityActionButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.identityActionText}>Share Profile</Text>
-            </Pressable>
           </View>
         </View>
 
@@ -444,117 +484,195 @@ export default function ProfileScreen() {
                   <ActivityIndicator color={theme.colors.accentGreen} />
                   <Text style={styles.inlineText}>Loading saved vehicle...</Text>
                 </View>
-              ) : primaryVehicle ? (
-                <View style={styles.primaryVehicleCard}>
-                  <View style={styles.primaryLabelRow}>
-                    <View style={styles.primaryDot} />
-                    <Text style={styles.primaryLabel}>Primary vehicle</Text>
-                  </View>
-                  <Text style={styles.primaryText}>
-                    {primaryVehicle.year} {primaryVehicle.make} {primaryVehicle.model}
-                  </Text>
-                </View>
-              ) : null}
-
-              <DropdownField
-                label="Model Year"
-                valueLabel={year.length === 4 ? year : null}
-                placeholder="Select year"
-                onPress={() => openDropdown('year')}
-              />
-
-              <DropdownField
-                label="Make"
-                valueLabel={selectedMake?.makeName ?? null}
-                placeholder={
-                  loadingMakes
-                    ? 'Loading makes...'
-                    : year.length === 4
-                      ? 'Select make'
-                      : 'Select year first'
-                }
-                disabled={year.length !== 4 || loadingMakes}
-                onPress={() => openDropdown('make')}
-              />
-
-              <DropdownField
-                label="Model"
-                valueLabel={selectedModel?.modelName ?? null}
-                placeholder={
-                  loadingModels
-                    ? 'Loading models...'
-                    : selectedMakeId
-                      ? 'Select model'
-                      : 'Select make first'
-                }
-                disabled={!selectedMakeId || loadingModels}
-                onPress={() => openDropdown('model')}
-              />
-
-              <Pressable
-                onPress={handleSaveVehicle}
-                disabled={!canSaveVehicle || saveUiState === 'success'}
-                style={({ pressed }) => [
-                  styles.saveButtonPressable,
-                  !canSaveVehicle && styles.saveButtonDisabled,
-                  pressed && canSaveVehicle && saveUiState !== 'success' && styles.buttonPressed,
-                ]}
-              >
-                <View
-                  style={styles.saveButton}
-                  onLayout={(event) => {
-                    const measuredWidth = event.nativeEvent.layout.width;
-                    if (measuredWidth > 0 && measuredWidth !== saveButtonWidth) {
-                      setSaveButtonWidth(measuredWidth);
-                    }
-                  }}
-                >
-                  {saveUiState === 'saving' ? (
-                    <ActivityIndicator color={theme.colors.textInverse} />
-                  ) : (
-                    <Text style={styles.saveButtonText}>Save Vehicle</Text>
-                  )}
-
-                  {showSaveSuccessOverlay ? (
-                    <Animated.View
-                      style={[
-                        styles.saveSuccessOverlay,
-                        {
-                          transform: [{ translateX: saveSuccessTranslateX }],
-                        },
+              ) : activeVehicle ? (
+                <>
+                  <View style={styles.currentVehicleHeader}>
+                    <Text style={styles.currentVehicleLabel}>Current vehicle</Text>
+                    <Pressable
+                      onPress={() => openDropdown('vehicle')}
+                      disabled={savedVehicles.length < 2}
+                      style={({ pressed }) => [
+                        styles.currentVehiclePicker,
+                        savedVehicles.length < 2 && styles.currentVehiclePickerDisabled,
+                        pressed && savedVehicles.length >= 2 && styles.buttonPressed,
                       ]}
                     >
-                      <View style={styles.saveSuccessRow}>
-                        <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
-                        <Text style={styles.saveButtonText}>Vehicle Saved</Text>
-                      </View>
-                    </Animated.View>
-                  ) : null}
+                      <Text style={styles.currentVehiclePickerText}>
+                        {savedVehicles.length > 1 ? 'Switch' : 'Single'}
+                      </Text>
+                      <Ionicons
+                        name="caret-down"
+                        size={12}
+                        color={
+                          savedVehicles.length > 1
+                            ? theme.colors.accentGreenMuted
+                            : theme.colors.textDisabled
+                        }
+                      />
+                    </Pressable>
+                  </View>
+                  <View style={styles.primaryVehicleCard}>
+                    <View style={styles.primaryLabelRow}>
+                      <View style={styles.primaryDot} />
+                      <Text style={styles.primaryLabel}>Active vehicle</Text>
+                    </View>
+                    <Text style={styles.primaryText}>
+                      {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.emptyVehicleState}>
+                  <Ionicons name="car-outline" size={18} color={theme.colors.accentGreenMuted} />
+                  <Text style={styles.emptyVehicleStateText}>
+                    Add your first vehicle from Manage Vehicle below.
+                  </Text>
                 </View>
-              </Pressable>
+              )}
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              <View style={styles.vehiclePostsCard}>
+                <View style={styles.vehiclePostsHeaderRow}>
+                  <Ionicons name="images-outline" size={15} color={theme.colors.accentGreenMuted} />
+                  <Text style={styles.vehiclePostsTitle}>Posts for this vehicle</Text>
+                </View>
+                <View style={styles.vehiclePostsGrid}>
+                  <View style={styles.vehiclePostTilePlaceholder} />
+                  <View style={styles.vehiclePostTilePlaceholder} />
+                  <View style={styles.vehiclePostTilePlaceholder} />
+                </View>
+                <Text style={styles.vehiclePostsHint}>
+                  Phase 2: posts tagged to{' '}
+                  {activeVehicle ? `${activeVehicle.year} ${activeVehicle.make}` : 'your vehicle'}{' '}
+                  will appear here.
+                </Text>
+              </View>
+
               {profileIdentityError ? <Text style={styles.errorText}>{profileIdentityError}</Text> : null}
             </View>
 
-            <View style={styles.proCard}>
-              <View style={styles.proHeaderRow}>
-                <Ionicons name="sparkles-outline" size={14} color={theme.colors.brandProIcon} />
-                <Text style={styles.proTitle}>Multiple Vehicles</Text>
-                <View style={styles.proBadge}>
-                  <Text style={styles.proBadgeText}>PRO</Text>
+            <View style={[styles.card, styles.manageVehicleCard]}>
+              <Pressable
+                onPress={() => setManageVehicleExpanded((currentValue) => !currentValue)}
+                style={({ pressed }) => [styles.manageVehicleHeader, pressed && styles.buttonPressed]}
+              >
+                <View style={styles.manageVehicleHeaderLeft}>
+                  <Ionicons name="options-outline" size={15} color={theme.colors.accentGreenMuted} />
+                  <Text style={styles.manageVehicleTitle}>Manage Vehicle</Text>
                 </View>
-              </View>
-              <Text style={styles.proBodyText}>
-                Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between multiple cars.
-              </Text>
-
-              <Pressable disabled style={styles.proCtaDisabled}>
-                <Ionicons name="add" size={18} color={theme.colors.textProCta} />
-                <Text style={styles.proCtaText}>
-                  {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
-                </Text>
+                <Ionicons
+                  name={manageVehicleExpanded ? 'caret-up' : 'caret-down'}
+                  size={14}
+                  color={theme.colors.accentGreenMuted}
+                />
               </Pressable>
+
+              {manageVehicleExpanded ? (
+                <>
+                  <Text style={styles.manageVehicleHint}>
+                    Change your active year, make, and model.
+                  </Text>
+
+                  <DropdownField
+                    label="Model Year"
+                    valueLabel={year.length === 4 ? year : null}
+                    placeholder="Select year"
+                    onPress={() => openDropdown('year')}
+                  />
+
+                  <DropdownField
+                    label="Make"
+                    valueLabel={selectedMake?.makeName ?? null}
+                    placeholder={
+                      loadingMakes
+                        ? 'Loading makes...'
+                        : year.length === 4
+                          ? 'Select make'
+                          : 'Select year first'
+                    }
+                    disabled={year.length !== 4 || loadingMakes}
+                    onPress={() => openDropdown('make')}
+                  />
+
+                  <DropdownField
+                    label="Model"
+                    valueLabel={selectedModel?.modelName ?? null}
+                    placeholder={
+                      loadingModels
+                        ? 'Loading models...'
+                        : selectedMakeId
+                          ? 'Select model'
+                          : 'Select make first'
+                    }
+                    disabled={!selectedMakeId || loadingModels}
+                    onPress={() => openDropdown('model')}
+                  />
+
+                  <Pressable
+                    onPress={handleSaveVehicle}
+                    disabled={!canSaveVehicle || saveUiState === 'success'}
+                    style={({ pressed }) => [
+                      styles.saveButtonPressable,
+                      !canSaveVehicle && styles.saveButtonDisabled,
+                      pressed && canSaveVehicle && saveUiState !== 'success' && styles.buttonPressed,
+                    ]}
+                  >
+                    <View
+                      style={styles.saveButton}
+                      onLayout={(event) => {
+                        const measuredWidth = event.nativeEvent.layout.width;
+                        if (measuredWidth > 0 && measuredWidth !== saveButtonWidth) {
+                          setSaveButtonWidth(measuredWidth);
+                        }
+                      }}
+                    >
+                      {saveUiState === 'saving' ? (
+                        <ActivityIndicator color={theme.colors.textInverse} />
+                      ) : (
+                        <Text style={styles.saveButtonText}>Save Vehicle</Text>
+                      )}
+
+                      {showSaveSuccessOverlay ? (
+                        <Animated.View
+                          style={[
+                            styles.saveSuccessOverlay,
+                            {
+                              transform: [{ translateX: saveSuccessTranslateX }],
+                            },
+                          ]}
+                        >
+                          <View style={styles.saveSuccessRow}>
+                            <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
+                            <Text style={styles.saveButtonText}>Vehicle Saved</Text>
+                          </View>
+                        </Animated.View>
+                      ) : null}
+                    </View>
+                  </Pressable>
+
+                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                  <View style={[styles.proCard, styles.manageProCard]}>
+                    <View style={styles.proHeaderRow}>
+                      <Ionicons name="sparkles-outline" size={14} color={theme.colors.brandProIcon} />
+                      <Text style={styles.proTitle}>Multiple Vehicles</Text>
+                      <View style={styles.proBadge}>
+                        <Text style={styles.proBadgeText}>PRO</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.proBodyText}>
+                      Free plan includes 1 active vehicle. Upgrade to Pro to save and switch between
+                      multiple cars.
+                    </Text>
+
+                    <Pressable disabled style={styles.proCtaDisabled}>
+                      <Ionicons name="add" size={18} color={theme.colors.textProCta} />
+                      <Text style={styles.proCtaText}>
+                        {hasFreeVehicleLimitReached ? 'Add another vehicle' : 'Unlock Pro vehicles'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
             </View>
           </>
         ) : activeSection === 'posts' ? (
@@ -658,10 +776,10 @@ const styles = StyleSheet.create({
     height: 36,
   },
   topHandle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: theme.colors.accentGreen,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   settingsIconButton: {
     width: 36,
@@ -695,7 +813,7 @@ const styles = StyleSheet.create({
   },
   identityTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   avatarCircleLarge: {
     width: 64,
@@ -720,7 +838,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 2,
+    paddingTop: 8,
   },
   statInlineItem: {
     alignItems: 'center',
@@ -772,14 +890,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: theme.colors.accentGreen,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    lineHeight: 26,
+    lineHeight: 22,
   },
   statLabel: {
     marginTop: 1,
     color: theme.colors.textSecondary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   profileTabsBar: {
@@ -931,6 +1049,120 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+  currentVehicleHeader: {
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  currentVehicleLabel: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+  },
+  currentVehiclePicker: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  currentVehiclePickerDisabled: {
+    borderColor: theme.colors.borderSoft,
+    backgroundColor: theme.colors.surfaceDisabled,
+  },
+  currentVehiclePickerText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyVehicleState: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyVehicleStateText: {
+    flex: 1,
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  vehiclePostsCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
+    padding: 12,
+  },
+  vehiclePostsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vehiclePostsTitle: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  vehiclePostsGrid: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  vehiclePostTilePlaceholder: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  vehiclePostsHint: {
+    marginTop: 9,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  manageVehicleCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderLight,
+  },
+  manageVehicleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 30,
+  },
+  manageVehicleHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  manageVehicleTitle: {
+    color: theme.colors.accentGreen,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  manageVehicleHint: {
+    marginTop: 8,
+    marginBottom: 10,
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   fieldGroup: {
     marginBottom: 10,
   },
@@ -1024,6 +1256,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfacePro,
     padding: 14,
     marginBottom: 14,
+  },
+  manageProCard: {
+    marginTop: 12,
+    marginBottom: 0,
   },
   proHeaderRow: {
     flexDirection: 'row',
