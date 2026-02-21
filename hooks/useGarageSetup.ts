@@ -46,6 +46,7 @@ type UseGarageSetupResult = {
   loadingSavedVehicles: boolean;
   savingVehicle: boolean;
   deletingVehicleId: string | null;
+  savedVehiclesError: string | null;
   error: string | null;
   successMessage: string | null;
   canSaveVehicle: boolean;
@@ -56,6 +57,7 @@ type UseGarageSetupResult = {
   requiresProForAdditionalVehicles: boolean;
   hasFreeVehicleLimitReached: boolean;
   hasMaxVehicleLimitReached: boolean;
+  refreshGarage: () => Promise<void>;
   setYear: (value: string) => void;
   setSelectedMakeId: (value: number | null) => void;
   setSelectedModelId: (value: number | null) => void;
@@ -95,6 +97,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
   const [savingVehicle, setSavingVehicle] = useState<boolean>(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
   const [isProMember, setIsProMember] = useState<boolean>(false);
+  const [savedVehiclesError, setSavedVehiclesError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -147,6 +150,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       setYearState('');
       setSelectedMakeIdState(null);
       setSelectedModelIdState(null);
+      setSavedVehiclesError(null);
       setLoadingSavedVehicles(false);
       return;
     }
@@ -154,6 +158,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       if (!silent) {
         setLoadingSavedVehicles(true);
       }
+    setSavedVehiclesError(null);
     setError(null);
 
     const { data, error: fetchError } = await supabase
@@ -165,6 +170,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       .returns<VehicleRow[]>();
 
     if (fetchError) {
+      setSavedVehiclesError('Could not load saved vehicles.');
       setError('Could not load saved vehicles.');
       setLoadingSavedVehicles(false);
       return;
@@ -180,6 +186,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     }));
 
     setSavedVehicles(mapped);
+    setSavedVehiclesError(null);
     setLoadingSavedVehicles(false);
     },
     [user]
@@ -212,6 +219,10 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
   useEffect(() => {
     void loadProfileEntitlement();
   }, [loadProfileEntitlement]);
+
+  const refreshGarage = useCallback(async (): Promise<void> => {
+    await Promise.all([loadSavedVehicles(), loadProfileEntitlement()]);
+  }, [loadProfileEntitlement, loadSavedVehicles]);
 
   useEffect(() => {
     let isMounted = true;
@@ -612,6 +623,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     loadingSavedVehicles,
     savingVehicle,
     deletingVehicleId,
+    savedVehiclesError,
     error,
     successMessage,
     canSaveVehicle,
@@ -622,6 +634,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     requiresProForAdditionalVehicles,
     hasFreeVehicleLimitReached,
     hasMaxVehicleLimitReached,
+    refreshGarage,
     setYear,
     setSelectedMakeId,
     setSelectedModelId,

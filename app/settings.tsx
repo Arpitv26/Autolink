@@ -102,7 +102,6 @@ export default function SettingsScreen() {
           </Pressable>
           <View>
             <Text style={styles.title}>Settings</Text>
-            <Text style={styles.subtitle}>Support, legal, and account resources.</Text>
           </View>
         </View>
 
@@ -186,12 +185,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.accentGreen,
   },
-  subtitle: {
-    marginTop: 2,
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
   sectionCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
@@ -240,15 +233,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.borderDangerSoft,
-    backgroundColor: theme.colors.surfaceDangerSoft,
+    borderColor: theme.colors.textDangerStrong,
+    backgroundColor: theme.colors.textDanger,
     minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   signOutText: {
-    color: theme.colors.textDangerStrong,
+    color: theme.colors.textInverse,
     fontSize: 17,
     fontWeight: '700',
   },

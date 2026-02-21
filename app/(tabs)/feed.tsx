@@ -1,14 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router } from 'expo-router';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { usePrimaryVehicleContext } from '../../hooks/usePrimaryVehicleContext';
 import { theme } from '../../lib/theme';
 
 export default function FeedScreen() {
   const { user } = useAuth();
-  const { primaryVehicle, loading, error } = usePrimaryVehicleContext(user);
+  const { primaryVehicle, loading, error, refresh } = usePrimaryVehicleContext(user);
   const primaryVehicleLabel = useMemo(() => {
     if (!primaryVehicle) return null;
     return `${primaryVehicle.year} ${primaryVehicle.make} ${primaryVehicle.model}`;
@@ -27,15 +28,38 @@ export default function FeedScreen() {
 
       <View style={styles.contextCard}>
         <Text style={styles.contextTitle}>Feed Vehicle Context</Text>
-        <Text style={styles.contextValue}>
-          {loading
-            ? 'Loading your garage vehicle...'
-            : error
-              ? error
-              : primaryVehicleLabel
-                ? `Showing updates relevant to ${primaryVehicleLabel}.`
-                : 'Add a vehicle in Profile to personalize your feed.'}
-        </Text>
+        {loading ? (
+          <View style={styles.contextStatusRow}>
+            <ActivityIndicator size="small" color={theme.colors.accentGreen} />
+            <Text style={styles.contextValue}>Loading your garage vehicle...</Text>
+          </View>
+        ) : error ? (
+          <>
+            <Text style={styles.contextErrorText}>{error}</Text>
+            <Pressable
+              onPress={() => void refresh()}
+              style={({ pressed }) => [styles.contextActionButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.contextActionText}>Retry</Text>
+            </Pressable>
+          </>
+        ) : primaryVehicleLabel ? (
+          <Text style={styles.contextValue}>
+            Showing updates relevant to {primaryVehicleLabel}.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.contextValue}>
+              Add a vehicle in Profile to personalize your feed.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/(tabs)/profile')}
+              style={({ pressed }) => [styles.contextActionButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.contextActionText}>Go to Profile</Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       <View style={styles.badge}>
@@ -122,5 +146,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 19,
+  },
+  contextStatusRow: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contextErrorText: {
+    marginTop: 4,
+    color: theme.colors.textDanger,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+  contextActionButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.surfaceBrand,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+  },
+  contextActionText: {
+    color: theme.colors.accentGreen,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.985 }],
   },
 });

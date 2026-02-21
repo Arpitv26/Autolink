@@ -18,8 +18,9 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - Supabase client + Google OAuth auth flow implemented.
 - Bottom tabs reordered to product-style flow: `Feed`, `Planner`, `AI`, `Profile`.
 - Default post-auth landing route now opens `Feed`.
-- Profile tab has active polish work (green theme, garage UX, profile editing, Pro gating behavior).
-- AI/Planner/Feed remain placeholder UIs, but now show shared primary-vehicle context.
+- Profile tab polish now includes: decluttered garage cards, icon-based section switcher, and smooth section transitions.
+- AI/Planner/Feed placeholder UIs show shared primary-vehicle context with explicit loading/error/empty recovery actions.
+- Settings screen has cleaner header copy and stronger sign-out CTA styling.
 
 ## 2) Recently Completed
 - Persisted active-vehicle switching to database primary state:
@@ -53,6 +54,25 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - Added process rule in master docs:
   - Decision logging requires explicit user approval before writing workflow/product decisions to docs.
   - Files: `AGENTS.md`, `CODEX.md`
+- Added loading/error/empty-state polish for placeholder tabs:
+  - Retry CTA on context-load errors and Profile CTA for no-vehicle state.
+  - Files: `app/(tabs)/feed.tsx`, `app/(tabs)/planner.tsx`, `app/(tabs)/ai.tsx`
+- Added explicit garage refresh + error recovery path:
+  - Exposed `refreshGarage` and `savedVehiclesError` from garage hook; wired Retry actions in Profile.
+  - Files: `hooks/useGarageSetup.ts`, `app/(tabs)/profile.tsx`
+- Decluttered Profile Garage:
+  - Removed separate "Current vehicle" block; vehicle status now shown only in "Your vehicles".
+  - Files: `app/(tabs)/profile.tsx`
+- Upgraded profile section switcher:
+  - Replaced text tabs with icon bar + sliding underline + smooth left/right section transitions.
+  - Files: `app/(tabs)/profile.tsx`
+- Settings micro-polish:
+  - Removed subtitle under "Settings".
+  - Increased sign-out button opacity and lightened label contrast.
+  - File: `app/settings.tsx`
+- Added persistent process rule:
+  - End-of-session `docs/session_state.md` update is mandatory and sessions should not close without it.
+  - Files: `AGENTS.md`, `CODEX.md`
 
 ## 3) In-Progress Area
 - Profile tab UX refinement:
@@ -60,7 +80,7 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
   - interaction polish
   - copy/state polish
 - Next immediate focus:
-  - loading/error/empty-state polish for Profile and placeholder tabs
+  - device validation pass for new Profile section switcher + garage state recovery behavior
 - Prep for onboarding skeleton gate (lightweight now, full polished onboarding later).
 
 ## 4) Open Decisions
@@ -83,9 +103,9 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - Ensure required Supabase migrations are applied in dashboard before testing affected flows.
 
 ## 7) Next 3 Tasks (Suggested)
-1. Build and validate profile + placeholder-tab loading/error/edge-state polish (#4 focus).
-2. Build lightweight onboarding skeleton gate and include profile-completeness progress strip (#5 in onboarding scope).
-3. Verify profile vehicle flows and cross-tab context on Expo Go, then commit profile polish slice.
+1. Validate Profile tab animations/states on Expo Go (icon switcher, section slide, garage retry/error states) and tune motion/spacing as needed.
+2. Build lightweight onboarding skeleton gate and include profile-completeness progress strip.
+3. Commit the profile/settings polish slice after Expo Go validation with a focused changelog.
 
 ## 8) Key Files To Load First
 - `AGENTS.md`
@@ -99,6 +119,7 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - `app/(tabs)/planner.tsx`
 - `app/(tabs)/ai.tsx`
 - `app/profile-data.tsx`
+- `app/settings.tsx`
 - `hooks/useAuth.ts`
 - `hooks/useGarageSetup.ts`
 - `hooks/usePrimaryVehicleContext.ts`

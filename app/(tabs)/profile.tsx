@@ -16,7 +16,13 @@ import {
   View,
 } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
-import Reanimated, { LinearTransition } from 'react-native-reanimated';
+import Reanimated, {
+  LinearTransition,
+  SlideInLeft,
+  SlideInRight,
+  SlideOutLeft,
+  SlideOutRight,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
@@ -37,6 +43,7 @@ type PendingVehicleDeletion = {
 };
 
 const VEHICLE_CARD_LAYOUT_TRANSITION = LinearTransition.duration(260);
+const PROFILE_SECTION_ORDER: ProfileSection[] = ['vehicles', 'posts', 'favorites'];
 
 type ActiveDropdown = {
   title: string;
@@ -53,6 +60,27 @@ type DropdownFieldProps = {
   disabled?: boolean;
   onPress: () => void;
 };
+
+function ProfileSectionIcon({
+  section,
+  focused,
+}: {
+  section: ProfileSection;
+  focused: boolean;
+}) {
+  const color = focused ? theme.colors.accentGreen : theme.colors.textMuted;
+  const size = focused ? 22 : 19;
+
+  if (section === 'vehicles') {
+    return <MaterialCommunityIcons name="car-outline" size={size} color={color} />;
+  }
+
+  if (section === 'posts') {
+    return <Ionicons name="images-outline" size={size} color={color} />;
+  }
+
+  return <Ionicons name="heart-outline" size={size} color={color} />;
+}
 
 function DropdownField({
   label,
@@ -109,6 +137,7 @@ export default function ProfileScreen() {
     loadingSavedVehicles,
     savingVehicle,
     deletingVehicleId,
+    savedVehiclesError,
     error,
     successMessage,
     canSaveVehicle,
@@ -118,6 +147,7 @@ export default function ProfileScreen() {
     devBypassProVehiclePaywall,
     requiresProForAdditionalVehicles,
     hasMaxVehicleLimitReached,
+    refreshGarage,
     setYear,
     setSelectedMakeId,
     setSelectedModelId,
@@ -130,6 +160,8 @@ export default function ProfileScreen() {
   const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
   const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
   const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
+  const [tabTransitionDirection, setTabTransitionDirection] = useState<1 | -1>(1);
+  const [tabsBarWidth, setTabsBarWidth] = useState(0);
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
   const [switchingVehicleId, setSwitchingVehicleId] = useState<string | null>(null);
   const [manageVehicleExpanded, setManageVehicleExpanded] = useState(false);
@@ -142,6 +174,7 @@ export default function ProfileScreen() {
   const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandledSuccessRef = useRef<string | null>(null);
   const saveSuccessTranslateX = useRef(new RNAnimated.Value(0)).current;
+  const tabIndicatorTranslateX = useRef(new RNAnimated.Value(0)).current;
   const {
     username: profileUsername,
     displayName: profileDisplayName,
@@ -205,6 +238,21 @@ export default function ProfileScreen() {
     }
     return primaryVehicle;
   }, [activeVehicleId, primaryVehicle, savedVehicles]);
+
+  const isInitialGarageLoading = loadingSavedVehicles && savedVehicles.length === 0;
+  const showGarageLoadError = Boolean(savedVehiclesError) && savedVehicles.length === 0;
+  const activeSectionIndex = useMemo(
+    () => Math.max(0, PROFILE_SECTION_ORDER.indexOf(activeSection)),
+    [activeSection]
+  );
+  const tabSegmentWidth = useMemo(
+    () => (tabsBarWidth > 0 ? tabsBarWidth / PROFILE_SECTION_ORDER.length : 0),
+    [tabsBarWidth]
+  );
+  const tabIndicatorWidth = useMemo(
+    () => (tabSegmentWidth > 0 ? tabSegmentWidth * 0.42 : 0),
+    [tabSegmentWidth]
+  );
 
   const orderedVehicles = useMemo(() => {
     if (!activeVehicle?.id) return savedVehicles;
@@ -363,6 +411,18 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
+    if (tabSegmentWidth <= 0 || tabIndicatorWidth <= 0) return;
+
+    const centeredOffset = (tabSegmentWidth - tabIndicatorWidth) / 2;
+    RNAnimated.timing(tabIndicatorTranslateX, {
+      toValue: tabSegmentWidth * activeSectionIndex + centeredOffset,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [activeSectionIndex, tabIndicatorTranslateX, tabIndicatorWidth, tabSegmentWidth]);
+
+  useEffect(() => {
     return () => {
       if (saveSuccessTimeoutRef.current) {
         clearTimeout(saveSuccessTimeoutRef.current);
@@ -434,8 +494,9 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshProfileIdentity();
+      void refreshGarage();
       return undefined;
-    }, [refreshProfileIdentity])
+    }, [refreshGarage, refreshProfileIdentity])
   );
 
   const handleSaveVehicle = (): void => {
@@ -481,6 +542,18 @@ export default function ProfileScreen() {
   const handleDeleteVehicle = (vehicleId: string): void => {
     requestDeleteVehicle(vehicleId);
   };
+
+  const handleSectionChange = useCallback(
+    (nextSection: ProfileSection): void => {
+      if (nextSection === activeSection) return;
+
+      const currentIndex = PROFILE_SECTION_ORDER.indexOf(activeSection);
+      const nextIndex = PROFILE_SECTION_ORDER.indexOf(nextSection);
+      setTabTransitionDirection(nextIndex > currentIndex ? 1 : -1);
+      setActiveSection(nextSection);
+    },
+    [activeSection]
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -539,52 +612,67 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.profileTabsBar}>
-          <Pressable
-            onPress={() => setActiveSection('vehicles')}
-            style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
-          >
-            <Text
+        <View
+          style={styles.profileTabsBar}
+          onLayout={(event) => {
+            const nextWidth = event.nativeEvent.layout.width;
+            if (nextWidth > 0 && nextWidth !== tabsBarWidth) {
+              setTabsBarWidth(nextWidth);
+            }
+          }}
+        >
+          {tabsBarWidth > 0 ? (
+            <RNAnimated.View
               style={[
-                styles.profileTabLabel,
-                activeSection === 'vehicles' && styles.profileTabLabelActive,
+                styles.profileTabIndicator,
+                {
+                  width: tabIndicatorWidth,
+                  transform: [{ translateX: tabIndicatorTranslateX }],
+                },
               ]}
-            >
-              Vehicles
-            </Text>
-            {activeSection === 'vehicles' ? <View style={styles.profileTabUnderline} /> : null}
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveSection('posts')}
-            style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
-          >
-            <Text
-              style={[
-                styles.profileTabLabel,
-                activeSection === 'posts' && styles.profileTabLabelActive,
-              ]}
-            >
-              Posts
-            </Text>
-            {activeSection === 'posts' ? <View style={styles.profileTabUnderline} /> : null}
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveSection('favorites')}
-            style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
-          >
-            <Text
-              style={[
-                styles.profileTabLabel,
-                activeSection === 'favorites' && styles.profileTabLabelActive,
-              ]}
-            >
-              Favorites
-            </Text>
-            {activeSection === 'favorites' ? <View style={styles.profileTabUnderline} /> : null}
-          </Pressable>
+            />
+          ) : null}
+
+          {PROFILE_SECTION_ORDER.map((section) => {
+            const focused = section === activeSection;
+            const accessibilityLabel =
+              section === 'vehicles'
+                ? 'Vehicles'
+                : section === 'posts'
+                  ? 'Posts'
+                  : 'Favorites';
+
+            return (
+              <Pressable
+                key={section}
+                onPress={() => handleSectionChange(section)}
+                accessibilityRole="button"
+                accessibilityLabel={accessibilityLabel}
+                style={({ pressed }) => [styles.profileTab, pressed && styles.buttonPressed]}
+              >
+                <View style={[styles.profileTabIconWrap, focused && styles.profileTabIconWrapActive]}>
+                  <ProfileSectionIcon section={section} focused={focused} />
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
         <View style={styles.sectionDivider} />
 
+        <Reanimated.View
+          key={activeSection}
+          entering={
+            tabTransitionDirection === 1
+              ? SlideInRight.duration(220)
+              : SlideInLeft.duration(220)
+          }
+          exiting={
+            tabTransitionDirection === 1
+              ? SlideOutLeft.duration(220)
+              : SlideOutRight.duration(220)
+          }
+          style={styles.sectionAnimatedContainer}
+        >
         {activeSection === 'vehicles' ? (
           <>
             <View style={[styles.card, styles.garageCard]}>
@@ -596,34 +684,43 @@ export default function ProfileScreen() {
                 Your primary vehicle is used across AI, planner, and feed.
               </Text>
 
-              {loadingSavedVehicles && savedVehicles.length === 0 ? (
+              {isInitialGarageLoading ? (
                 <View style={styles.inlineRow}>
                   <ActivityIndicator color={theme.colors.accentGreen} />
-                  <Text style={styles.inlineText}>Loading saved vehicle...</Text>
+                  <Text style={styles.inlineText}>Loading your garage...</Text>
+                </View>
+              ) : showGarageLoadError ? (
+                <View style={styles.garageErrorState}>
+                  <View style={styles.inlineRow}>
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={16}
+                      color={theme.colors.textDanger}
+                    />
+                    <Text style={styles.errorTextCompact}>{savedVehiclesError}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => void refreshGarage()}
+                    style={({ pressed }) => [
+                      styles.garageRetryButton,
+                      pressed && styles.buttonPressed,
+                    ]}
+                  >
+                    <Text style={styles.garageRetryButtonText}>Retry Garage Load</Text>
+                  </Pressable>
                 </View>
               ) : activeVehicle ? (
                 <>
-                  <View style={styles.currentVehicleHeader}>
-                    <Text style={styles.currentVehicleLabel}>Current vehicle</Text>
-                    {switchingVehicleId ? (
-                      <View style={styles.currentVehicleStatusRow}>
-                        <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
-                        <Text style={styles.currentVehicleStatusText}>Updating...</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={styles.primaryVehicleCard}>
-                    <View style={styles.primaryLabelRow}>
-                      <View style={styles.primaryDot} />
-                      <Text style={styles.primaryLabel}>Active vehicle</Text>
-                    </View>
-                    <Text style={styles.primaryText}>
-                      {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}
-                    </Text>
-                  </View>
-
                   <View style={styles.savedVehiclesSection}>
-                    <Text style={styles.savedVehiclesTitle}>Your vehicles</Text>
+                    <View style={styles.savedVehiclesHeaderRow}>
+                      <Text style={styles.savedVehiclesTitle}>Your vehicles</Text>
+                      {switchingVehicleId ? (
+                        <View style={styles.savedVehiclesUpdatingRow}>
+                          <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
+                          <Text style={styles.savedVehiclesUpdatingText}>Updating...</Text>
+                        </View>
+                      ) : null}
+                    </View>
                     <View style={styles.savedVehiclesList}>
                       {orderedVehicles.map((vehicle) => {
                         const isPrimaryVehicle = vehicle.id === primaryVehicle?.id;
@@ -707,9 +804,20 @@ export default function ProfileScreen() {
               ) : (
                 <View style={styles.emptyVehicleState}>
                   <Ionicons name="car-outline" size={18} color={theme.colors.accentGreenMuted} />
-                  <Text style={styles.emptyVehicleStateText}>
-                    Add your first vehicle from Manage Vehicle below.
-                  </Text>
+                  <View style={styles.emptyVehicleStateCopy}>
+                    <Text style={styles.emptyVehicleStateText}>
+                      Add your first vehicle from Manage Vehicle below.
+                    </Text>
+                    <Pressable
+                      onPress={() => setManageVehicleExpanded(true)}
+                      style={({ pressed }) => [
+                        styles.emptyVehicleActionButton,
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <Text style={styles.emptyVehicleActionButtonText}>Start Vehicle Setup</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
 
@@ -832,7 +940,27 @@ export default function ProfileScreen() {
                     </View>
                   </Pressable>
 
-                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                  {error ? (
+                    <View style={styles.manageErrorBlock}>
+                      <Text style={styles.errorText}>{error}</Text>
+                      <Pressable
+                        onPress={() => void refreshGarage()}
+                        disabled={savingVehicle || Boolean(switchingVehicleId) || Boolean(deletingVehicleId)}
+                        style={({ pressed }) => [
+                          styles.manageErrorRetryButton,
+                          (savingVehicle || Boolean(switchingVehicleId) || Boolean(deletingVehicleId)) &&
+                            styles.manageErrorRetryButtonDisabled,
+                          pressed &&
+                            !savingVehicle &&
+                            !switchingVehicleId &&
+                            !deletingVehicleId &&
+                            styles.buttonPressed,
+                        ]}
+                      >
+                        <Text style={styles.manageErrorRetryButtonText}>Retry Sync</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
 
                   <View style={[styles.proCard, styles.manageProCard]}>
                     <View style={styles.proHeaderRow}>
@@ -907,6 +1035,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
         )}
+        </Reanimated.View>
 
         <View style={styles.footerInline}>
           <Ionicons name="information-circle-outline" size={13} color={theme.colors.textMuted} />
@@ -1245,36 +1374,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileTabsBar: {
+    position: 'relative',
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderDefault,
+    minHeight: 44,
     marginBottom: 2,
+  },
+  profileTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: theme.colors.accentGreen,
   },
   profileTab: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 7,
+    justifyContent: 'center',
   },
-  profileTabLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '700',
+  profileTabIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  profileTabLabelActive: {
-    color: theme.colors.accentGreen,
-    fontWeight: '700',
-  },
-  profileTabUnderline: {
-    marginTop: 6,
-    height: 2,
-    borderRadius: 2,
-    width: '78%',
-    backgroundColor: theme.colors.accentGreen,
+  profileTabIconWrapActive: {
+    transform: [{ scale: 1.08 }],
   },
   sectionDivider: {
     height: 10,
+  },
+  sectionAnimatedContainer: {
+    minHeight: 200,
   },
   garageCard: {
     backgroundColor: theme.colors.surfaceBrandSoft,
@@ -1357,87 +1492,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingLeft: 26,
   },
-  primaryVehicleCard: {
+  savedVehiclesSection: {
     marginBottom: 14,
-    borderRadius: 12,
-    backgroundColor: theme.colors.surfaceBrand,
-    borderWidth: 1,
-    borderColor: theme.colors.borderBrandSoft,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.accentGreen,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
   },
-  primaryLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  primaryDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.accentGreenMuted,
-  },
-  primaryLabel: {
-    color: theme.colors.accentGreenMuted,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  primaryText: {
-    marginTop: 4,
-    marginLeft: 13,
-    color: theme.colors.accentGreen,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  currentVehicleHeader: {
+  savedVehiclesHeaderRow: {
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  currentVehicleLabel: {
-    color: theme.colors.accentGreenMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.35,
-  },
-  currentVehicleStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  currentVehicleStatusText: {
-    color: theme.colors.accentGreenMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  currentVehiclePicker: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceMuted,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  currentVehiclePickerDisabled: {
-    borderColor: theme.colors.borderSoft,
-    backgroundColor: theme.colors.surfaceDisabled,
-  },
-  currentVehiclePickerText: {
-    color: theme.colors.accentGreenMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  savedVehiclesSection: {
-    marginBottom: 14,
+    gap: 8,
   },
   savedVehiclesTitle: {
     color: theme.colors.accentGreenMuted,
@@ -1445,7 +1508,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.35,
-    marginBottom: 8,
+  },
+  savedVehiclesUpdatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  savedVehiclesUpdatingText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
   savedVehiclesList: {
     gap: 8,
@@ -1537,11 +1609,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  emptyVehicleStateText: {
+  emptyVehicleStateCopy: {
     flex: 1,
+  },
+  emptyVehicleStateText: {
     color: theme.colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
+  },
+  emptyVehicleActionButton: {
+    marginTop: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.surfaceBrand,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  emptyVehicleActionButtonText: {
+    color: theme.colors.accentGreen,
+    fontSize: 12,
+    fontWeight: '700',
   },
   vehiclePostsCard: {
     borderRadius: 12,
@@ -1682,6 +1770,27 @@ const styles = StyleSheet.create({
     color: theme.colors.textDanger,
     fontSize: 14,
   },
+  manageErrorBlock: {
+    marginTop: 2,
+  },
+  manageErrorRetryButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+  },
+  manageErrorRetryButtonDisabled: {
+    opacity: 0.6,
+  },
+  manageErrorRetryButtonText: {
+    color: theme.colors.textSubtle,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1691,6 +1800,36 @@ const styles = StyleSheet.create({
   inlineText: {
     color: theme.colors.accentGreenMuted,
     fontSize: 14,
+  },
+  garageErrorState: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  errorTextCompact: {
+    flex: 1,
+    color: theme.colors.textDanger,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  garageRetryButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.surfaceBrand,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+  },
+  garageRetryButtonText: {
+    color: theme.colors.accentGreen,
+    fontSize: 13,
+    fontWeight: '700',
   },
   proCard: {
     borderRadius: 16,
