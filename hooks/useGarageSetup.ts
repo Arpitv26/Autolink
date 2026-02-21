@@ -263,18 +263,9 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     try {
       await ensureUserProfile(user);
 
-      const primary = primaryVehicle ?? null;
+      let nextPrimaryId: string | null = null;
 
-      const { error: clearPrimaryError } = await supabase
-        .from('vehicles')
-        .update({ is_primary: false })
-        .eq('user_id', user.id);
-
-      if (clearPrimaryError) {
-        throw new Error('Could not update primary vehicle.');
-      }
-
-      if (primary) {
+      if (primaryVehicle) {
         const { error: updateError } = await supabase
           .from('vehicles')
           .update({
@@ -283,24 +274,40 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
             year: parsedYear,
             is_primary: true,
           })
-          .eq('id', primary.id)
+          .eq('id', primaryVehicle.id)
           .eq('user_id', user.id);
 
         if (updateError) {
           throw new Error('Could not save vehicle.');
         }
+        nextPrimaryId = primaryVehicle.id;
       } else {
-        const { error: insertError } = await supabase.from('vehicles').insert({
-          user_id: user.id,
-          make: selectedMake.makeName,
-          model: selectedModel.modelName,
-          year: parsedYear,
-          is_primary: true,
-        });
+        const { data: insertedVehicle, error: insertError } = await supabase
+          .from('vehicles')
+          .insert({
+            user_id: user.id,
+            make: selectedMake.makeName,
+            model: selectedModel.modelName,
+            year: parsedYear,
+            is_primary: true,
+          })
+          .select('id')
+          .single<{ id: string }>();
 
-        if (insertError) {
+        if (insertError || !insertedVehicle?.id) {
           throw new Error('Could not save vehicle.');
         }
+        nextPrimaryId = insertedVehicle.id;
+      }
+
+      const { error: normalizeError } = await supabase
+        .from('vehicles')
+        .update({ is_primary: false })
+        .eq('user_id', user.id)
+        .neq('id', nextPrimaryId);
+
+      if (normalizeError) {
+        throw new Error('Vehicle saved, but could not finalize primary vehicle state.');
       }
 
       await loadSavedVehicles();

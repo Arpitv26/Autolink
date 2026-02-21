@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import type { Session, User } from '@supabase/supabase-js';
+import React, {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { ensureUserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
 
@@ -13,6 +21,10 @@ type UseAuthResult = {
   initializing: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+};
+
+type AuthProviderProps = {
+  children: ReactNode;
 };
 
 const AUTH_CODE_PATTERN = /[?&]code=([^&]+)/;
@@ -46,7 +58,9 @@ function getTokensFromUrl(
   };
 }
 
-export function useAuth(): UseAuthResult {
+const AuthContext = createContext<UseAuthResult | null>(null);
+
+function useProvideAuth(): UseAuthResult {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
@@ -147,5 +161,21 @@ export function useAuth(): UseAuthResult {
     await supabase.auth.signOut();
   }, []);
 
-  return { session, user, initializing, signInWithGoogle, signOut };
+  return useMemo(
+    () => ({ session, user, initializing, signInWithGoogle, signOut }),
+    [initializing, session, signInWithGoogle, signOut, user]
+  );
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const auth = useProvideAuth();
+  return React.createElement(AuthContext.Provider, { value: auth }, children);
+}
+
+export function useAuth(): UseAuthResult {
+  const auth = useContext(AuthContext);
+  if (!auth) {
+    throw new Error('useAuth must be used within AuthProvider.');
+  }
+  return auth;
 }

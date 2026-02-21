@@ -1,8 +1,8 @@
 import { Stack, router, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { AuthProvider, useAuth } from '../hooks/useAuth';
 
-export default function RootLayout() {
+function RootNavigator() {
   const { session, initializing } = useAuth();
   const segments = useSegments();
 
@@ -31,5 +31,13 @@ export default function RootLayout() {
         }}
       />
     </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
   );
 }

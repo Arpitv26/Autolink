@@ -161,7 +161,7 @@ Personalise the entire app experience around your specific car.
 - npm or yarn
 - Expo Go app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent))
 - A [Supabase](https://supabase.com) account (free)
-- An [OpenAI](https://platform.openai.com) API key
+- An [OpenAI](https://platform.openai.com) API key configured in Supabase Edge Function secrets (never in client env)
 
 ### Installation
 
@@ -185,8 +185,9 @@ Create a `.env` file in the root directory:
 ```env
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-EXPO_PUBLIC_OPENAI_KEY=your_openai_api_key
 ```
+
+Do not place any OpenAI key in Expo client env vars. AI requests should go through a Supabase Edge Function proxy.
 
 **4. Set up Supabase**
 
@@ -229,7 +230,7 @@ autolink/
 │   └── ui/                     # Shared UI components
 ├── lib/
 │   ├── supabase.ts             # Supabase client configuration
-│   ├── openai.ts               # OpenAI client + hooks
+│   ├── ai.ts                   # AI hook/client calling Supabase Edge Function
 │   └── nhtsa.ts                # NHTSA vehicle API helpers
 ├── hooks/
 │   ├── useAutoLinkAI.ts        # AI chat state management hook
