@@ -1,10 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '../../hooks/useAuth';
+import { usePrimaryVehicleContext } from '../../hooks/usePrimaryVehicleContext';
 import { theme } from '../../lib/theme';
 
 export default function FeedScreen() {
+  const { user } = useAuth();
+  const { primaryVehicle, loading, error } = usePrimaryVehicleContext(user);
+  const primaryVehicleLabel = useMemo(() => {
+    if (!primaryVehicle) return null;
+    return `${primaryVehicle.year} ${primaryVehicle.make} ${primaryVehicle.model}`;
+  }, [primaryVehicle]);
+
   return (
     <View style={styles.container}>
       <View style={styles.iconWrap}>
@@ -15,6 +24,19 @@ export default function FeedScreen() {
       <Text style={styles.subtitle}>
         Share your builds, get feedback, and discover inspiration from other enthusiasts.
       </Text>
+
+      <View style={styles.contextCard}>
+        <Text style={styles.contextTitle}>Feed Vehicle Context</Text>
+        <Text style={styles.contextValue}>
+          {loading
+            ? 'Loading your garage vehicle...'
+            : error
+              ? error
+              : primaryVehicleLabel
+                ? `Showing updates relevant to ${primaryVehicleLabel}.`
+                : 'Add a vehicle in Profile to personalize your feed.'}
+        </Text>
+      </View>
 
       <View style={styles.badge}>
         <Ionicons name="time-outline" size={14} color={theme.colors.brandWarning} />
@@ -75,5 +97,30 @@ const styles = StyleSheet.create({
     color: theme.colors.brandWarning,
     fontSize: 15,
     fontWeight: '600',
+  },
+  contextCard: {
+    marginTop: 14,
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  contextTitle: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  contextValue: {
+    marginTop: 4,
+    color: theme.colors.accentGreen,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
   },
 });

@@ -36,6 +36,8 @@ How I Should Think
 
 **Demo First**: Always prioritize making features work for demo, not perfection — mocked data is fine where noted
 
+**Decision Logging Discipline**: For workflow/product decisions that affect future work, propose the doc update first and ask for explicit approval before writing it.
+
 ---
 
 Plan → Execute → Verify
@@ -45,6 +47,8 @@ Plan → Execute → Verify
 **Execute:** Implement one feature at a time; keep PRs/commits small and focused
 
 **Verify:** Run `npm run lint` and test on Expo Go after each feature; never skip this step
+
+**Document (with approval):** After approval, log temporary decisions in `docs/session_state.md` and long-lived rules in `AGENTS.md`/`CODEX.md`.
 
 ---
 

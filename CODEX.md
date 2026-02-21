@@ -74,6 +74,10 @@ Directives
 
 **Commit at milestones** — create a git commit after each working feature slice.
 
+**Decision docs require approval** — before writing workflow/product decisions to docs, ask Arpit for explicit permission.
+
+**Where to log decisions after approval** — use `docs/session_state.md` for session-scoped decisions and `AGENTS.md`/`CODEX.md` for persistent process rules.
+
 ---
 
 Recommended Workflow (Terminal)
@@ -2057,4 +2061,3 @@ Before Demo Day Checklist
 ☐ Screen recording of the full demo flow ready as backup
 
 AutoLink • Codex CLI Config + Docs • February 2026 • Arpit Verma @ UBC
-

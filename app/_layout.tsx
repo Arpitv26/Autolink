@@ -23,7 +23,7 @@ function RootNavigator() {
     }
 
     if (session && inAuthGroup) {
-      router.replace('/(tabs)/ai');
+      router.replace('/(tabs)/feed');
     }
   }, [initializing, profileSetupError, segments, session]);
 

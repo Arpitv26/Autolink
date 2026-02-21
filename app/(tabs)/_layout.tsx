@@ -51,9 +51,9 @@ export default function TabsLayout() {
         tabBarIcon: ({ focused }) => renderTabIcon(route.name, theme.colors.accentGreen, focused),
       })}
     >
-      <Tabs.Screen name="ai" options={{ title: 'AI' }} />
-      <Tabs.Screen name="planner" options={{ title: 'Planner' }} />
       <Tabs.Screen name="feed" options={{ title: 'Feed' }} />
+      <Tabs.Screen name="planner" options={{ title: 'Planner' }} />
+      <Tabs.Screen name="ai" options={{ title: 'AI' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );

@@ -28,6 +28,10 @@ type VehicleRow = {
   created_at: string;
 };
 
+type ProfileEntitlementRow = {
+  is_pro: boolean;
+};
+
 type UseGarageSetupResult = {
   year: string;
   yearOptions: string[];
@@ -66,17 +70,6 @@ function parseBooleanEnvFlag(value: string | undefined): boolean {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
-function getIsProMember(user: User | null): boolean {
-  if (!user) return false;
-
-  const rawValue: unknown = user.user_metadata?.is_pro;
-  if (typeof rawValue === 'boolean') return rawValue;
-  if (typeof rawValue === 'number') return rawValue === 1;
-  if (typeof rawValue === 'string') return parseBooleanEnvFlag(rawValue);
-
-  return false;
-}
-
 function buildYearOptions(): string[] {
   const currentYear = new Date().getFullYear();
   const years: string[] = [];
@@ -100,6 +93,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
   const [loadingSavedVehicles, setLoadingSavedVehicles] = useState<boolean>(true);
   const [savingVehicle, setSavingVehicle] = useState<boolean>(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
+  const [isProMember, setIsProMember] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -119,7 +113,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     [savedVehicles]
   );
 
-  const isProMember = getIsProMember(user);
   const canUseProVehicles = isProMember || DEV_BYPASS_PRO_VEHICLE_PAYWALL;
   const hasFreeVehicleLimitReached = savedVehicles.length >= FREE_PLAN_VEHICLE_LIMIT;
   const hasMaxVehicleLimitReached = savedVehicles.length >= MAX_VEHICLES;
@@ -184,9 +177,33 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     setLoadingSavedVehicles(false);
   }, [user]);
 
+  const loadProfileEntitlement = useCallback(async (): Promise<void> => {
+    if (!user) {
+      setIsProMember(false);
+      return;
+    }
+
+    const { data, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_pro')
+      .eq('id', user.id)
+      .maybeSingle<ProfileEntitlementRow>();
+
+    if (profileError) {
+      setIsProMember(false);
+      return;
+    }
+
+    setIsProMember(Boolean(data?.is_pro));
+  }, [user]);
+
   useEffect(() => {
     void loadSavedVehicles();
   }, [loadSavedVehicles]);
+
+  useEffect(() => {
+    void loadProfileEntitlement();
+  }, [loadProfileEntitlement]);
 
   useEffect(() => {
     let isMounted = true;
