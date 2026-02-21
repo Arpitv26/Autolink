@@ -78,6 +78,12 @@ Directives
 
 **Where to log decisions after approval** — use `docs/session_state.md` for session-scoped decisions and `AGENTS.md`/`CODEX.md` for persistent process rules.
 
+**Session close-out required** — before ending a session, update `docs/session_state.md` with completed work, blockers, and next 3 tasks (when approval is required, ask first).
+
+**Explain user-side actions step-by-step** — if Arpit needs to do anything manually, provide simple, explicit, non-technical steps.
+
+**Capture persistent instructions** — when Arpit gives instructions that are likely useful in future sessions, ask permission to add them to `AGENTS.md`/`CODEX.md`, then update after approval.
+
 ---
 
 Recommended Workflow (Terminal)

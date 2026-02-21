@@ -38,6 +38,12 @@ How I Should Think
 
 **Decision Logging Discipline**: For workflow/product decisions that affect future work, propose the doc update first and ask for explicit approval before writing it.
 
+**Session Close-Out Discipline**: At the end of each work session, update `docs/session_state.md` with what was completed, current blockers, and the next 3 tasks (after approval when required).
+
+**User Action Guidance**: If Arpit needs to do anything on his side, explain it step-by-step in simple, non-technical language.
+
+**Persistent Instruction Capture**: If Arpit gives an instruction that seems broadly useful for future sessions, ask permission to record it in docs; once approved, update `AGENTS.md`/`CODEX.md`.
+
 ---
 
 Plan → Execute → Verify
