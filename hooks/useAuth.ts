@@ -105,7 +105,10 @@ function useProvideAuth(): UseAuthResult {
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<void> => {
-    const redirectTo = makeRedirectUri({ path: 'auth/callback' });
+    const redirectTo = makeRedirectUri({
+      path: 'auth/callback',
+      preferLocalhost: false,
+    });
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
