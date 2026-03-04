@@ -37,7 +37,7 @@
 
 ## About the Project
 
-AutoLink is a solo-built mobile application developed as a portfolio project by a 2nd-year CS student at UBC. It solves a real pain point in the car enthusiast community: **fragmentation**.
+AutoLink is an AI-powered platform that brings the entire car build process into one place — helping enthusiasts plan modifications, verify part compatibility, and share builds with a community. It solves one of the biggest frustrations in car culture: **fragmentation**.
 
 Right now, a car enthusiast planning a modification has to bounce between:
 - **YouTube** for inspiration
@@ -48,7 +48,7 @@ Right now, a car enthusiast planning a modification has to bounce between:
 
 None of these tools talk to each other. **AutoLink changes that.**
 
-> *Built as a portfolio demo · iOS + Android · 12-week solo build*
+> *MVP currently under development · iOS + Android · 12-week solo build*
 
 ---
 
@@ -155,6 +155,8 @@ Personalise the entire app experience around your specific car.
 
 ## Getting Started
 
+> (for local-users only, early development stages)
+> 
 ### Prerequisites
 
 - Node.js `v18+`
@@ -201,6 +203,17 @@ npx expo start
 ```
 
 Scan the QR code with Expo Go on your phone, or press `i` for iOS simulator / `a` for Android emulator.
+
+---
+
+## Download
+
+AutoLink will be available soon on:
+
+- App Store
+- Google Play
+
+**Join the waitlist: autolink.app**
 
 ---
 
@@ -358,7 +371,7 @@ You are AutoLink AI, an expert automotive modification assistant.
 | Output cost (GPT-4o mini) | 12M × $0.60/M | $7.20/month |
 | **Total AI cost** | | **~$5–8/month** |
 
-> 💡 A Supabase Edge Function is used as an OpenAI proxy — hiding the API key from the client, enforcing per-user rate limits, and enabling response caching to reduce costs.
+> A Supabase Edge Function is used as an OpenAI proxy — hiding the API key from the client, enforcing per-user rate limits, and enabling response caching to reduce costs.
 
 ---
 
@@ -445,7 +458,9 @@ AutoLink is designed to run well within a $50/month budget during the demo phase
 
 ## Contributing
 
-This is a solo portfolio project, but feedback and suggestions are welcome!
+AutoLink is currently under active development. Feedback, ideas, and improvements are always welcome.
+
+If you would like to contribute:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/your-feature`)
@@ -453,32 +468,20 @@ This is a solo portfolio project, but feedback and suggestions are welcome!
 4. Push to the branch (`git push origin feature/your-feature`)
 5. Open a Pull Request
 
----
-
-## Learning Resources
-
-Resources used while building AutoLink:
-
-- [Expo Documentation](https://expo.dev/docs)
-- [React Native Docs](https://reactnative.dev)
-- [Supabase Documentation](https://supabase.com/docs)
-- [OpenAI API Reference](https://platform.openai.com/docs)
-- [NHTSA vPIC API](https://vpic.nhtsa.dot.gov/api)
-- [Fireship YouTube](https://youtube.com/@Fireship) — framework overviews
-- [Theo (t3.gg)](https://youtube.com/@t3dotgg) — full-stack TypeScript patterns
-- [r/reactnative](https://reddit.com/r/reactnative) — real developer pain points
+Please open an issue first to discuss major changes.
 
 ---
 
 ## License
 
-This project is for educational and portfolio purposes.
+This repository is publicly visible for transparency and learning purposes.  
+All rights reserved. The AutoLink codebase may not be copied, redistributed, or used to create derivative products without permission.
 
 ---
 
 <div align="center">
 
-**Built by Arpit Verma · 2nd Year CS @ UBC · February 2026**
+**AutoLink · Built by Arpit Verma**
 
 *AutoLink PRD & Research Report generated with the assistance of Claude AI*
 
