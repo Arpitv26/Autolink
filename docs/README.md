@@ -156,7 +156,7 @@ Personalise the entire app experience around your specific car.
 
 ## Getting Started
 
-> (for local-users only, early development stages)
+> For developers who want to run the project locally during early development.
 > 
 ### Prerequisites
 
@@ -408,7 +408,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 
 ---
 
-## 🗓️ Roadmap
+## Roadmap
 
 | Phase | Weeks | Milestone | Status |
 |---|---|---|---|
