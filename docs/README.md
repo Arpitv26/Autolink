@@ -18,20 +18,20 @@
 
 ## Table of Contents
 
-- [About the Project](#-about-the-project)
-- [The Problem](#-the-problem)
-- [Core Features](#-core-features)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
-- [Project Structure](#-project-structure)
-- [Database Schema](#-database-schema)
-- [AI Assistant](#-ai-assistant)
-- [Automotive Data APIs](#-automotive-data-apis)
-- [Roadmap](#-roadmap)
-- [Budget & Cost](#-budget--cost)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [About the Project](#about-the-project)
+- [The Problem](#the-problem)
+- [Core Features](#core-features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Database Schema](#database-schema)
+- [AI Assistant](#ai-assistant)
+- [Automotive Data APIs](#automotive-data-apis)
+- [Roadmap](#roadmap)
+- [Budget & Cost](#budget--cost)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -106,7 +106,7 @@ Personalise the entire app experience around your specific car.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology | Why |
 |---|---|---|
