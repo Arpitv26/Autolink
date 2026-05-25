@@ -1,8 +1,8 @@
 # AutoLink Session State
 
-Last updated: 2026-02-21
+Last updated: 2026-05-25
 Owner: Arpit
-Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context polish
+Current phase: Phase 1 (Foundation) - Warm dark theme + Profile UX polish validation
 
 ## Quick Update Checklist (60 sec)
 - [ ] Update `Last updated` date.
@@ -19,10 +19,23 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - Bottom tabs reordered to product-style flow: `Feed`, `Planner`, `AI`, `Profile`.
 - Default post-auth landing route now opens `Feed`.
 - Profile tab polish now includes: decluttered garage cards, icon-based section switcher, and smooth section transitions.
+- App theme is now warm dark with near-white primary text and restrained gold accents for borders, selected states, labels, and key controls.
+- Profile tab now uses a cleaner non-Instagram layout: connected dark surface, compact driver identity, flattened large sections, reduced explanatory copy, and tuned section-switcher spacing.
 - AI/Planner/Feed placeholder UIs show shared primary-vehicle context with explicit loading/error/empty recovery actions.
 - Settings screen has cleaner header copy and stronger sign-out CTA styling.
 
 ## 2) Recently Completed
+- Reworked app visual direction:
+  - Switched from the previous light/warm theme to a warm dark theme.
+  - Main text is near-white; gold is used mainly for accents, borders, icons, selected states, and important labels.
+  - Files: `lib/theme.ts`, `app/_layout.tsx`, `app.json`
+- Redesigned Profile tab away from Instagram-style layout:
+  - Removed centered handle + social counter layout.
+  - Added compact driver identity area with avatar, display name, bio, vehicle count, and edit action.
+  - Flattened large profile/garage/manage sections so the screen feels connected instead of boxed.
+  - Removed explanatory copy such as the primary-vehicle note, Phase 2 post hint, and social-feature footer.
+  - Tuned icon section switcher spacing so active icon/underline no longer collide.
+  - Files: `app/(tabs)/profile.tsx`
 - Persisted active-vehicle switching to database primary state:
   - Vehicle switch now updates `vehicles.is_primary` and propagates across tabs.
   - Files: `hooks/useGarageSetup.ts`, `app/(tabs)/profile.tsx`
@@ -75,12 +88,12 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
   - Files: `AGENTS.md`, `CODEX.md`
 
 ## 3) In-Progress Area
-- Profile tab UX refinement:
-  - visual polish
-  - interaction polish
-  - copy/state polish
+- Phase 1 visual validation:
+  - warm dark theme consistency across all screens
+  - Profile tab spacing/contrast polish after Expo Go review
+  - verify Profile edit, Garage, section switcher, and tab bar still feel clean on device
 - Next immediate focus:
-  - device validation pass for new Profile section switcher + garage state recovery behavior
+  - device validation pass for the new dark Profile tab and cross-tab placeholder screens
 - Prep for onboarding skeleton gate (lightweight now, full polished onboarding later).
 
 ## 4) Open Decisions
@@ -103,9 +116,9 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - Ensure required Supabase migrations are applied in dashboard before testing affected flows.
 
 ## 7) Next 3 Tasks (Suggested)
-1. Validate Profile tab animations/states on Expo Go (icon switcher, section slide, garage retry/error states) and tune motion/spacing as needed.
-2. Build lightweight onboarding skeleton gate and include profile-completeness progress strip.
-3. Commit the profile/settings polish slice after Expo Go validation with a focused changelog.
+1. Validate the warm dark theme on Expo Go across Profile, Settings, Edit Profile, Feed, Planner, AI, sign-in, and auth callback screens.
+2. Tune any remaining spacing/contrast issues from device screenshots, especially Profile actions, Garage vehicle card, tab bar, and placeholder tabs.
+3. Build lightweight onboarding skeleton gate with profile/garage completeness progress once visual validation is accepted.
 
 ## 8) Key Files To Load First
 - `AGENTS.md`
@@ -120,6 +133,7 @@ Current phase: Phase 1 (Foundation) - Profile + entitlement + cross-tab context 
 - `app/(tabs)/ai.tsx`
 - `app/profile-data.tsx`
 - `app/settings.tsx`
+- `lib/theme.ts`
 - `hooks/useAuth.ts`
 - `hooks/useGarageSetup.ts`
 - `hooks/usePrimaryVehicleContext.ts`
@@ -135,7 +149,7 @@ Use this exactly (edit only if needed):
 ```text
 Read AGENTS.md, CODEX.md, and docs/session_state.md.
 Then load:
-app/_layout.tsx, app/index.tsx, app/(tabs)/_layout.tsx, app/(tabs)/profile.tsx, app/(tabs)/feed.tsx, app/(tabs)/planner.tsx, app/(tabs)/ai.tsx, app/profile-data.tsx, hooks/useAuth.ts, hooks/useGarageSetup.ts, hooks/usePrimaryVehicleContext.ts, hooks/useProfileIdentity.ts, hooks/useProfileDataForm.ts, supabase/migrations/20260220170000_phase1_profiles_vehicles.sql, supabase/migrations/20260221120000_profile_avatars_storage.sql, supabase/migrations/20260221133000_profiles_is_pro.sql.
-Summarize current state, blockers, and the exact next step.
-Do not code yet.
+app/_layout.tsx, app/index.tsx, app/(tabs)/_layout.tsx, app/(tabs)/profile.tsx, app/(tabs)/feed.tsx, app/(tabs)/planner.tsx, app/(tabs)/ai.tsx, app/profile-data.tsx, app/settings.tsx, lib/theme.ts, hooks/useAuth.ts, hooks/useGarageSetup.ts, hooks/usePrimaryVehicleContext.ts, hooks/useProfileIdentity.ts, hooks/useProfileDataForm.ts, supabase/migrations/20260220170000_phase1_profiles_vehicles.sql, supabase/migrations/20260221120000_profile_avatars_storage.sql, supabase/migrations/20260221133000_profiles_is_pro.sql.
+Current state: Phase 1 foundation is implemented with Google auth, profile editing/avatar upload, Garage vehicle CRUD, Pro vehicle gate, primary vehicle context across tabs, and a warm dark Profile redesign. The latest work flattened the Profile tab, removed Instagram-like counters/explanatory copy, and uses near-white text with restrained gold accents.
+Summarize current state, verify blockers, and recommend the exact next step. Do not code yet unless I explicitly ask you to continue.
 ```

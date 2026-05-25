@@ -78,11 +78,11 @@ agent_docs/testing.md — Verification strategy and commands
 
 Current State (Update This!)
 
-Last Updated: February 2026
+Last Updated: May 25, 2026
 
-Working On: Phase 1 profile tab polish (green theme + garage UX + profile data editing)
+Working On: Phase 1 visual validation after warm dark theme + Profile tab redesign
 
-Recently Completed: Expo scaffold, Supabase auth (Google OAuth), tab navigation, garage year/make/model flow
+Recently Completed: Expo scaffold, Supabase auth (Google OAuth), tab navigation, garage year/make/model flow, profile editing/avatar upload, Pro vehicle gate, cross-tab primary vehicle context, warm dark theme, non-Instagram Profile tab redesign
 
 Blocked By: None
 

@@ -1,3 +1,4 @@
+import { StatusBar } from 'expo-status-bar';
 import { Stack, router, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../hooks/useAuth';
@@ -51,6 +52,7 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <StatusBar style="light" />
       <RootNavigator />
     </AuthProvider>
   );

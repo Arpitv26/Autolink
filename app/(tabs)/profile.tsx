@@ -250,7 +250,7 @@ export default function ProfileScreen() {
     [tabsBarWidth]
   );
   const tabIndicatorWidth = useMemo(
-    () => (tabSegmentWidth > 0 ? tabSegmentWidth * 0.42 : 0),
+    () => (tabSegmentWidth > 0 ? tabSegmentWidth * 0.34 : 0),
     [tabSegmentWidth]
   );
 
@@ -559,8 +559,10 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <View style={styles.topBarSpacer} />
-          <Text style={styles.topHandle}>@{usernameHandle}</Text>
+          <View>
+            <Text style={styles.topTitle}>Profile</Text>
+            <Text style={styles.topHandle}>@{usernameHandle}</Text>
+          </View>
           <Pressable
             onPress={() => router.push('/settings')}
             style={({ pressed }) => [styles.settingsIconButton, pressed && styles.buttonPressed]}
@@ -570,7 +572,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.identitySection}>
-          <View style={styles.identityTopRow}>
+          <View style={styles.identityCard}>
             <View style={styles.avatarCircleLarge}>
               {profileAvatarUrl ? (
                 <Image source={{ uri: profileAvatarUrl }} style={styles.avatarImageLarge} />
@@ -578,31 +580,30 @@ export default function ProfileScreen() {
                 <Text style={styles.avatarTextLarge}>{accountInitials}</Text>
               )}
             </View>
-            <View style={styles.statsInlineRow}>
-              <View style={styles.statInlineItem}>
-                <Text style={styles.statValue}>0</Text>
-                <Text style={styles.statLabel}>Posts</Text>
-              </View>
-              <View style={styles.statInlineItem}>
-                <Text style={styles.statValue}>0</Text>
-                <Text style={styles.statLabel}>Friends</Text>
-              </View>
-              <View style={styles.statInlineItem}>
-                <Text style={styles.statValue}>{savedVehicles.length}</Text>
-                <Text style={styles.statLabel}>Vehicles</Text>
-              </View>
+
+            <View style={styles.identityContent}>
+              <Text style={styles.identityName}>{displayName}</Text>
+              <Text style={styles.identitySubtext}>{profileBio}</Text>
+              {profileIdentityLoading ? (
+                <View style={styles.identityLoadingRow}>
+                  <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
+                  <Text style={styles.identityLoadingText}>Refreshing profile...</Text>
+                </View>
+              ) : null}
             </View>
           </View>
-          <Text style={styles.identityName}>{displayName}</Text>
-          <Text style={styles.identitySubtext}>{profileBio}</Text>
-          {profileIdentityLoading ? (
-            <View style={styles.identityLoadingRow}>
-              <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
-              <Text style={styles.identityLoadingText}>Refreshing profile...</Text>
-            </View>
-          ) : null}
 
           <View style={styles.identityActionsRow}>
+            <View style={styles.profileCountPill}>
+              <MaterialCommunityIcons
+                name="garage-variant"
+                size={15}
+                color={theme.colors.accentGreenMuted}
+              />
+              <Text style={styles.profileCountText}>
+                {savedVehicles.length} {savedVehicles.length === 1 ? 'vehicle' : 'vehicles'}
+              </Text>
+            </View>
             <Pressable
               onPress={() => router.push('/profile-data')}
               style={({ pressed }) => [styles.identityActionButton, pressed && styles.buttonPressed]}
@@ -680,9 +681,6 @@ export default function ProfileScreen() {
                 <MaterialCommunityIcons name="car-outline" size={19} color={theme.colors.accentGreen} />
                 <Text style={styles.sectionTitle}>Garage</Text>
               </View>
-              <Text style={styles.sectionHint}>
-                Your primary vehicle is used across AI, planner, and feed.
-              </Text>
 
               {isInitialGarageLoading ? (
                 <View style={styles.inlineRow}>
@@ -713,7 +711,7 @@ export default function ProfileScreen() {
                 <>
                   <View style={styles.savedVehiclesSection}>
                     <View style={styles.savedVehiclesHeaderRow}>
-                      <Text style={styles.savedVehiclesTitle}>Your vehicles</Text>
+                      <Text style={styles.savedVehiclesTitle}>Vehicles</Text>
                       {switchingVehicleId ? (
                         <View style={styles.savedVehiclesUpdatingRow}>
                           <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
@@ -773,7 +771,12 @@ export default function ProfileScreen() {
                                 {isSwitchingThisVehicle ? (
                                   <ActivityIndicator size="small" color={theme.colors.textInverse} />
                                 ) : (
-                                  <Text style={styles.savedVehicleSwitchButtonText}>
+                                  <Text
+                                    style={[
+                                      styles.savedVehicleSwitchButtonText,
+                                      switchDisabled && styles.savedVehicleSwitchButtonTextDisabled,
+                                    ]}
+                                  >
                                     {isActiveVehicle ? 'Active' : 'Set active'}
                                   </Text>
                                 )}
@@ -789,9 +792,9 @@ export default function ProfileScreen() {
                                 ]}
                               >
                                 {isDeleteInProgress ? (
-                                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                                  <ActivityIndicator size="small" color={theme.colors.textPrimary} />
                                 ) : (
-                                  <Ionicons name="trash-outline" size={16} color={theme.colors.textInverse} />
+                                  <Ionicons name="trash-outline" size={16} color={theme.colors.textPrimary} />
                                 )}
                               </Pressable>
                             </View>
@@ -824,18 +827,13 @@ export default function ProfileScreen() {
               <View style={styles.vehiclePostsCard}>
                 <View style={styles.vehiclePostsHeaderRow}>
                   <Ionicons name="images-outline" size={15} color={theme.colors.accentGreenMuted} />
-                  <Text style={styles.vehiclePostsTitle}>Posts for this vehicle</Text>
+                  <Text style={styles.vehiclePostsTitle}>Vehicle posts</Text>
                 </View>
                 <View style={styles.vehiclePostsGrid}>
                   <View style={styles.vehiclePostTilePlaceholder} />
                   <View style={styles.vehiclePostTilePlaceholder} />
                   <View style={styles.vehiclePostTilePlaceholder} />
                 </View>
-                <Text style={styles.vehiclePostsHint}>
-                  Phase 2: posts tagged to{' '}
-                  {activeVehicle ? `${activeVehicle.year} ${activeVehicle.make}` : 'your vehicle'}{' '}
-                  will appear here.
-                </Text>
               </View>
 
               {profileIdentityError ? <Text style={styles.errorText}>{profileIdentityError}</Text> : null}
@@ -859,10 +857,6 @@ export default function ProfileScreen() {
 
               {manageVehicleExpanded ? (
                 <>
-                  <Text style={styles.manageVehicleHint}>
-                    Change your active year/make/model, or add another vehicle for testing.
-                  </Text>
-
                   <DropdownField
                     label="Model Year"
                     valueLabel={year.length === 4 ? year : null}
@@ -1037,10 +1031,6 @@ export default function ProfileScreen() {
         )}
         </Reanimated.View>
 
-        <View style={styles.footerInline}>
-          <Ionicons name="information-circle-outline" size={13} color={theme.colors.textMuted} />
-          <Text style={styles.footerText}>Social features are rolling out in upcoming phases.</Text>
-        </View>
       </ScrollView>
 
       <Modal
@@ -1235,34 +1225,37 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 18,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 120,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  topBarSpacer: {
-    width: 36,
-    height: 36,
+    marginBottom: 14,
   },
   topHandle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.accentGreen,
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    letterSpacing: -0.2,
+  },
+  topTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: theme.colors.textHeading,
     letterSpacing: -0.2,
   },
   settingsIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.appBackground,
     borderWidth: 1,
-    borderColor: theme.colors.borderSoft,
+    borderColor: theme.colors.borderDefault,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -1282,21 +1275,24 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderSoft,
   },
   identitySection: {
-    marginBottom: 8,
+    marginBottom: 18,
   },
-  identityTopRow: {
+  identityCard: {
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarCircleLarge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 74,
+    height: 74,
+    borderRadius: 20,
     backgroundColor: theme.colors.brandAvatar,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrandSoft,
   },
   avatarImageLarge: {
     width: '100%',
@@ -1307,29 +1303,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 22,
   },
-  statsInlineRow: {
+  identityContent: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 8,
-  },
-  statInlineItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 64,
   },
   identityName: {
-    marginTop: 12,
-    color: theme.colors.accentGreen,
-    fontSize: 26,
-    fontWeight: '700',
-    lineHeight: 30,
+    color: theme.colors.textPrimary,
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 31,
+    letterSpacing: -0.3,
   },
   identitySubtext: {
-    marginTop: 3,
+    marginTop: 5,
     color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   identityLoadingRow: {
     marginTop: 6,
@@ -1343,77 +1332,91 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   identityActionsRow: {
-    marginTop: 12,
+    marginTop: 14,
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
   },
   identityActionButton: {
-    flex: 1,
-    borderRadius: 12,
+    minWidth: 132,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: theme.colors.borderDefault,
-    backgroundColor: theme.colors.surfaceMuted,
-    paddingVertical: 9,
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.appBackground,
+    paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   identityActionText: {
-    color: theme.colors.textSubtle,
+    color: theme.colors.accentGreenMuted,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  profileCountPill: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  profileCountText: {
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '700',
-  },
-  statValue: {
-    color: theme.colors.accentGreen,
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
-  statLabel: {
-    marginTop: 1,
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
   },
   profileTabsBar: {
     position: 'relative',
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderDefault,
-    minHeight: 44,
-    marginBottom: 2,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
+    backgroundColor: theme.colors.appBackground,
+    borderRadius: 18,
+    minHeight: 58,
+    marginBottom: 10,
+    paddingHorizontal: 5,
+    paddingTop: 5,
+    paddingBottom: 8,
   },
   profileTabIndicator: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 5,
     left: 0,
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: theme.colors.accentGreen,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: theme.colors.brandPrimary,
   },
   profileTab: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 45,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 4,
   },
   profileTabIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 38,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profileTabIconWrapActive: {
-    transform: [{ scale: 1.08 }],
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
   },
   sectionDivider: {
-    height: 10,
+    height: 2,
   },
   sectionAnimatedContainer: {
     minHeight: 200,
   },
   garageCard: {
-    backgroundColor: theme.colors.surfaceBrandSoft,
-    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.appBackground,
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingTop: 4,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   accountRow: {
     flexDirection: 'row',
@@ -1478,22 +1481,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
+    marginBottom: 12,
   },
   sectionTitle: {
     color: theme.colors.accentGreen,
-    fontSize: 27,
-    fontWeight: '700',
-  },
-  sectionHint: {
-    marginTop: 4,
-    marginBottom: 14,
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    paddingLeft: 26,
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   savedVehiclesSection: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   savedVehiclesHeaderRow: {
     marginBottom: 8,
@@ -1523,16 +1520,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   savedVehicleCard: {
-    borderRadius: 12,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surfaceMuted,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+    backgroundColor: theme.colors.appBackground,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   savedVehicleCardPrimary: {
     borderColor: theme.colors.borderBrand,
-    backgroundColor: theme.colors.surfaceBrand,
+    backgroundColor: theme.colors.appBackground,
   },
   savedVehicleRow: {
     flexDirection: 'row',
@@ -1543,9 +1540,9 @@ const styles = StyleSheet.create({
   savedVehicleName: {
     flex: 1,
     color: theme.colors.accentGreen,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 20,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 23,
   },
   savedVehiclePrimaryBadge: {
     borderRadius: 999,
@@ -1563,33 +1560,38 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   savedVehicleActionsRow: {
-    marginTop: 8,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   savedVehicleSwitchButton: {
     flex: 1,
-    minHeight: 36,
-    borderRadius: 10,
+    minHeight: 42,
+    borderRadius: 14,
     backgroundColor: theme.colors.buttonPrimary,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
     alignItems: 'center',
     justifyContent: 'center',
   },
   savedVehicleSwitchButtonDisabled: {
-    backgroundColor: theme.colors.surfaceDisabled,
+    backgroundColor: theme.colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: theme.colors.borderSoft,
+    borderColor: theme.colors.borderDefault,
   },
   savedVehicleSwitchButtonText: {
-    color: theme.colors.textInverse,
+    color: theme.colors.accentGreenMuted,
     fontSize: 13,
     fontWeight: '700',
   },
+  savedVehicleSwitchButtonTextDisabled: {
+    color: theme.colors.textSecondary,
+  },
   savedVehicleDeleteButton: {
-    width: 40,
-    minHeight: 36,
-    borderRadius: 10,
+    width: 46,
+    minHeight: 42,
+    borderRadius: 14,
     backgroundColor: theme.colors.textDanger,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1632,11 +1634,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   vehiclePostsCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.borderMuted,
-    backgroundColor: theme.colors.surface,
-    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.appBackground,
+    paddingTop: 14,
   },
   vehiclePostsHeaderRow: {
     flexDirection: 'row',
@@ -1656,20 +1657,17 @@ const styles = StyleSheet.create({
   vehiclePostTilePlaceholder: {
     flex: 1,
     aspectRatio: 1,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: theme.colors.borderSoft,
-    backgroundColor: theme.colors.surfaceMuted,
-  },
-  vehiclePostsHint: {
-    marginTop: 9,
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
+    backgroundColor: theme.colors.appBackground,
   },
   manageVehicleCard: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.appBackground,
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   manageVehicleHeader: {
     flexDirection: 'row',
@@ -1686,13 +1684,6 @@ const styles = StyleSheet.create({
     color: theme.colors.accentGreen,
     fontSize: 16,
     fontWeight: '700',
-  },
-  manageVehicleHint: {
-    marginTop: 8,
-    marginBottom: 10,
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
   },
   fieldGroup: {
     marginBottom: 10,
@@ -1740,6 +1731,8 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: theme.colors.buttonPrimary,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrand,
     minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1919,18 +1912,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
-  },
-  footerInline: {
-    marginTop: 2,
-    marginBottom: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  footerText: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
   },
   buttonPressed: {
     transform: [{ scale: 0.985 }],
