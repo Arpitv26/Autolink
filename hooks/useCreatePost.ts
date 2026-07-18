@@ -21,10 +21,16 @@ type VehicleRow = {
   is_primary: boolean;
 };
 
+type UseCreatePostOptions = {
+  initialVehicleId?: string | null;
+  buildId?: string | null;
+};
+
 type UseCreatePostResult = {
   images: ImagePicker.ImagePickerAsset[];
   vehicles: PostVehicleOption[];
   selectedVehicleId: string | null;
+  buildId: string | null;
   loadingVehicles: boolean;
   picking: boolean;
   publishing: boolean;
@@ -62,10 +68,16 @@ function validateAssets(assets: ImagePicker.ImagePickerAsset[]): string | null {
   return invalidAsset ? 'Each photo must be an image smaller than 8 MB.' : null;
 }
 
-export function useCreatePost(user: User | null): UseCreatePostResult {
+export function useCreatePost(
+  user: User | null,
+  options: UseCreatePostOptions = {}
+): UseCreatePostResult {
   const [images, setImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [vehicles, setVehicles] = useState<PostVehicleOption[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
+    options.initialVehicleId ?? null
+  );
+  const [buildId] = useState<string | null>(options.buildId ?? null);
   const [loadingVehicles, setLoadingVehicles] = useState<boolean>(true);
   const [picking, setPicking] = useState<boolean>(false);
   const [publishing, setPublishing] = useState<boolean>(false);
@@ -103,8 +115,14 @@ export function useCreatePost(user: User | null): UseCreatePostResult {
             isPrimary: vehicle.is_primary,
           }));
           setVehicles(nextVehicles);
+          const preferredId = options.initialVehicleId;
+          const preferredExists = preferredId
+            ? nextVehicles.some((vehicle) => vehicle.id === preferredId)
+            : false;
           setSelectedVehicleId(
-            nextVehicles.find((vehicle) => vehicle.isPrimary)?.id ?? null
+            preferredExists
+              ? preferredId ?? null
+              : nextVehicles.find((vehicle) => vehicle.isPrimary)?.id ?? null
           );
         }
 
@@ -114,7 +132,7 @@ export function useCreatePost(user: User | null): UseCreatePostResult {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [options.initialVehicleId, user]);
 
   const pickImages = useCallback(async (): Promise<void> => {
     setPicking(true);
@@ -200,6 +218,7 @@ export function useCreatePost(user: User | null): UseCreatePostResult {
         const { error: insertError } = await supabase.from('posts').insert({
           user_id: user.id,
           vehicle_id: selectedVehicleId,
+          build_id: buildId,
           caption: trimmedCaption || null,
           image_urls: imageUrls,
         });
@@ -217,13 +236,14 @@ export function useCreatePost(user: User | null): UseCreatePostResult {
         setPublishing(false);
       }
     },
-    [images, selectedVehicleId, user]
+    [buildId, images, selectedVehicleId, user]
   );
 
   return {
     images,
     vehicles,
     selectedVehicleId,
+    buildId,
     loadingVehicles,
     picking,
     publishing,

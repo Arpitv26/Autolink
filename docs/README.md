@@ -18,13 +18,10 @@
 
 ## Current Implementation Status
 
-Foundation and the chronological Social Feed vertical slice are implemented. The app now has
-Google OAuth, a resumable profile/first-vehicle setup gate, profile/avatar editing, server-enforced
-garage entitlements, paginated posts, 1–5 image uploads with carousel dots, optional vehicle
-attachment on posts, optimistic likes, threaded comments, follow/unfollow, and profile
-Posts/Favorites with vehicle filters. Garage focuses on vehicle management only; vehicle-linked
-posts are browsed from the Profile Posts tab. Planner and AI remain placeholder tabs; Planner is
-the next milestone.
+Foundation, Social Feed, and Mod Planner core are implemented. The app has Google OAuth, a
+resumable setup gate, profile/garage, paginated posts with optional vehicle attachment, and a
+Planner build editor backed by a mocked parts catalog with live cost, category zones, and
+share-to-Feed. AI remains the next placeholder milestone.
 
 Backend behavior is migration-driven. Apply every file in `supabase/migrations/` before testing.
 
@@ -95,13 +92,13 @@ A conversational AI chat interface where users ask natural language questions ab
 - Rate-limited to 20 queries/day per user (demo phase)
 
 ### Visual Modification Planner
-A drag-and-drop canvas to visually plan and organise your entire build.
+A primary-vehicle build planner with a mocked parts catalog.
 
-- Drag mod cards into category zones (suspension, exhaust, wheels, etc.)
-- Real-time cost tracker updates as you add/remove parts
-- Filter by category, brand, and price range
-- Auto-saves to Supabase PostgreSQL
-- Share your build directly to the Social Feed
+- Browse/filter ~120 parts by category, brand, price, and search
+- Add/remove parts on a category-zone board with reorder and long-press move
+- Real-time estimated cost synced to Supabase
+- One active build per garage vehicle for MVP
+- Share the build to Feed with photos and a linked `build_id`
 
 ### Social Community Feed
 A car-community feed for build updates and discussion.
@@ -283,13 +280,12 @@ Supabase migrations are the only schema source of truth. The implemented model c
 
 - `profiles` and `vehicles`, with server-managed Pro entitlement and atomic primary-vehicle RPCs
 - `posts`, `likes`, `comments`, and `follows`, with indexed chronological reads
-- optional `posts.vehicle_id` referencing the author’s garage vehicle (`ON DELETE SET NULL`)
-- trigger-maintained post counters and vehicle-ownership validation on posts
+- optional `posts.vehicle_id` and `posts.build_id`
+- `builds` and `build_items` with one active build per vehicle and trigger-maintained totals
 - public `avatars` and `post-images` buckets with owner-scoped write policies
 - Row Level Security on every app table
 
-Planner/build tables are intentionally deferred until the Planner milestone. See
-`supabase/migrations/` for exact SQL and policy definitions.
+See `supabase/migrations/` for exact SQL and policy definitions.
 
 ---
 
@@ -385,8 +381,8 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 |---|---|---|---|
 | **Foundation** | 1–2 | Auth, setup gate, profile, server-enforced garage, quality baseline | ✅ Implemented |
 | **Social Feed** | 3–5 | Pagination, image posts, likes, comments, follows, profile sections | ✅ Implemented |
-| **Planner** | 6–8 | Drag-and-drop canvas, mocked parts catalogue, cost tracker, persistence | ⏳ Next |
-| **AI Core** | 9–10 | Edge Function proxy, chat UI, vehicle context, rate limiting | ⏳ Upcoming |
+| **Planner** | 6–8 | Catalog, build editor, cost tracker, share to Feed | ✅ Core shipped |
+| **AI Core** | 9–10 | Edge Function proxy, chat UI, vehicle context, rate limiting | ⏳ Next |
 | **Polish** | 11–12 | Device hardening, EAS builds, store previews, demo video | ⏳ Upcoming |
 
 ### What's Real vs. Mocked in the Demo

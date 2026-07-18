@@ -14,16 +14,16 @@ Acceptance Criteria:
   - Typing indicator shown while AI responds
 Tech: OpenAI GPT-4o mini via Supabase Edge Function proxy
 Feature 2: Visual Modification Planner
-Drag-and-drop canvas for planning car mods with cost tracking
+Category-zone build planner with mocked catalog and cost tracking
 User Story: &quot;As a car builder, I want to visually organise all my planned mods in one place — with costs — so I can see my full build at a glance and plan my budget.&quot;
 Acceptance Criteria:
-  - Add mod cards from mocked parts catalog (static JSON)
-  - Mod cards are draggable into category zones
-  - Filter by category, brand, price
+  - Add mod cards from mocked parts catalog (static JSON, ~120 parts)
+  - Parts organise into category zones with reorder + long-press move
+  - Filter by category, brand, price, and search
   - Total cost displayed and updates in real time
-  - Build auto-saves to Supabase
-  - Share build directly to Social Feed
-Tech: react-native-reanimated + Supabase PostgreSQL
+  - One active build per primary vehicle persists to Supabase
+  - Share build directly to Social Feed with optional build link
+Tech: react-native-reanimated + gesture-handler + Supabase PostgreSQL
 Feature 3: Social Community Feed
 Car-community feed for sharing build updates
 User Story: &quot;As a car enthusiast, I want to share my build progress and see what others are building so I can get inspired and feel part of a community.&quot;

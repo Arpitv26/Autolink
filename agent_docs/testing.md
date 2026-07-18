@@ -28,10 +28,12 @@ AI Chat flow:
 ☐ Typing indicator appears while waiting
 ☐ Send 21 messages in one day → 21st gets rate limit error message
 Mod Planner flow:
-☐ Browse parts catalog → filter by category
-☐ Drag a part card → drops into zone → cost updates
-☐ Build auto-saves to Supabase (verify in Supabase dashboard)
-☐ Tap &quot;Share to Feed&quot; → post appears in feed
+☐ Open Planner with a primary vehicle → active build loads/creates
+☐ Browse parts catalog → filter by category/brand/price/search
+☐ Add part → appears in category zone and total cost updates
+☐ Reorder with chevrons; long-press then tap another zone to move
+☐ Reload app → build items persist
+☐ Tap Share Build to Feed → caption/vehicle/build prefilled → publish with photos
 Social Feed flow:
 ☐ Feed loads with posts visible (including optional demo seed)
 ☐ Create post with 2+ photos → carousel pagination dots update while swiping

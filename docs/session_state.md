@@ -2,81 +2,66 @@
 
 Last updated: 2026-07-18
 Owner: Arpit
-Current phase: Phase 2 Social Feed complete, including vehicle-linked posts
+Current phase: Phase 3 Mod Planner first vertical slices shipped
 
 ## Current Snapshot
 - Expo Router app on Expo SDK 54 with Google OAuth and Supabase session persistence.
-- Signed-in users must complete a display name and first vehicle before entering the tab app.
-- Foundation includes profile/avatar editing, garage CRUD, atomic primary switching/deletion, warm-dark UI, and server-owned Pro entitlement.
-- Social Feed includes paginated posts, 1–5 image creation with carousel dots, optional vehicle attachment, optimistic likes, threaded comments/replies, follow/unfollow, profile Posts/Favorites, and Profile Posts vehicle filters.
-- Garage tab shows vehicles and manage controls only; vehicle-specific posts live under the Profile Posts tab filters, not as a Garage placeholder strip.
-- Planner and AI remain placeholders with primary-vehicle context.
+- Foundation and Social Feed are complete, including vehicle-linked posts and Profile Posts filters.
+- Mod Planner is no longer a placeholder: primary-vehicle builds load via `get_or_create_active_build`, parts come from a 120-item mocked catalog, live cost updates, category zones support reorder/move, and builds can be shared to Feed with photos.
+- AI remains a placeholder with primary-vehicle context.
 - CI runs install, TypeScript, ESLint, and focused Vitest logic tests.
 
 ## Recently Completed
-- Split reusable garage/profile UI into `components/profile/`.
-- Added foundation hardening and Social Feed migrations, including
-  `supabase/migrations/20260718120000_vehicle_linked_posts.sql`.
-- Added lightweight resumable setup gate in `app/onboarding.tsx`.
-- Added Feed, post creation, comments/replies, likes, follows, and profile post/favorite sections.
-- Added optional “Post about” vehicle selector on create-post; defaults to primary vehicle; supports general posts.
-- Added TikTok-style multi-photo pagination dots and vehicle badges on Feed cards.
-- Added Profile Posts filter chips: All posts + each garage vehicle.
-- Removed unused Garage “Vehicle posts” placeholder tiles for a cleaner garage layout.
-- Added `.github/workflows/ci.yml`, `npm run verify`, and focused onboarding/entitlement tests.
-- Applied all migrations and optional demo seed to the linked Supabase project.
+- Automated Feed/Foundation smoke: `npm run verify`, Expo Doctor 18/18, web export.
+- Added `supabase/migrations/20260718130000_mod_planner_builds.sql`:
+  - `builds` / `build_items` with RLS and vehicle ownership checks
+  - one active build per user+vehicle
+  - trigger-maintained `total_cost`
+  - optional `posts.build_id`
+- Added `data/parts_catalog.json` (120 parts) and `lib/partsCatalog.ts` with filters/tests.
+- Rebuilt `app/(tabs)/planner.tsx` with catalog browser, category zones, persistence, long-press move mode, and Share Build to Feed.
+- Create-post accepts `vehicleId`, `buildId`, and prefilled `caption` for Planner share.
 
 ## Verification
-- `npm run verify`: passing
+- `npm run verify`: passing (including parts catalog tests)
 - `npx expo-doctor`: 18/18 checks passing
-- Expo web production export: passing
-- Physical-device interaction still requires a human Expo Go pass.
+- Physical-device Expo Go interaction still recommended for OAuth/media/drag gestures
 
 ## Backend Status
-- Local and remote migrations are synchronized through
-  `20260718120000_vehicle_linked_posts.sql`.
-- `posts.vehicle_id` is nullable, ownership-validated, and set null if the vehicle is deleted.
-- `supabase/seed.sql` seeded three demo posts (general posts, no vehicle attachment).
+- Migrations synchronized through `20260718130000_mod_planner_builds.sql` after push.
 - Re-run `npx supabase db push` after adding future migrations.
 
 ## Open Decisions
-- Pro billing/provider and the benefits beyond extra vehicles remain undecided.
+- Pro billing/provider and extra Pro benefits remain undecided.
 - Username editing remains locked.
 - Apple Sign-In remains deferred.
-- Feed ranking is chronological for MVP; recommendation/ranking work is deferred.
-- Planner is the next product milestone; AI follows Planner.
+- Full freeform canvas positions can be expanded later; current Planner uses category zones + sort order.
+- AI is the next major product milestone after Planner polish.
 
 ## Known Constraints and Risks
 - Never expose OpenAI or service-role keys in the Expo client.
 - The dev Pro flag only changes local UI gating; database entitlement remains authoritative.
 - Supabase migrations are the backend source of truth.
-- Post uploads can leave files behind if a post is deleted; add lifecycle cleanup before production scale.
-- Run physical-device checks for OAuth deep links, media picker permissions, and keyboard behavior.
+- Catalog is mocked JSON for demo cost/control.
 
 ## Next 3 Tasks
-1. Complete the Expo Go end-to-end interaction smoke test.
-2. Build the Mod Planner data model and first read/write vertical slice.
-3. Add EAS preview builds after Planner navigation is stable.
+1. Expo Go smoke the Planner add/remove/reorder/share loop on a physical device.
+2. Start AI Edge Function proxy + GiftedChat with vehicle context.
+3. Add EAS preview builds once AI chat is demo-stable.
 
 ## Key Files To Load First
 - `AGENTS.md`
 - `docs/session_state.md`
-- `app/_layout.tsx`
-- `app/onboarding.tsx`
-- `app/(tabs)/feed.tsx`
-- `app/(tabs)/profile.tsx`
+- `app/(tabs)/planner.tsx`
+- `hooks/useBuildPlanner.ts`
+- `lib/partsCatalog.ts`
+- `data/parts_catalog.json`
+- `components/planner/CatalogBrowser.tsx`
+- `components/planner/CategoryZone.tsx`
 - `app/create-post.tsx`
-- `components/feed/PostCard.tsx`
-- `hooks/useOnboarding.tsx`
-- `hooks/useGarageSetup.ts`
-- `hooks/useFeed.ts`
-- `hooks/useCreatePost.ts`
-- `hooks/useProfileFeedSections.ts`
-- `supabase/migrations/20260718080000_foundation_hardening.sql`
-- `supabase/migrations/20260718090000_social_feed.sql`
-- `supabase/migrations/20260718120000_vehicle_linked_posts.sql`
+- `supabase/migrations/20260718130000_mod_planner_builds.sql`
 
 ## Starter Prompt For New Sessions
 ```text
-Read AGENTS.md and docs/session_state.md. Foundation and Social Feed are implemented, including vehicle-linked posts, carousel dots, and Profile Posts vehicle filters. Garage no longer shows a Vehicle posts placeholder. First verify Expo Go smoke-test status, then recommend the smallest reviewable Mod Planner slice. Do not code unless explicitly asked.
+Read AGENTS.md and docs/session_state.md. Foundation, Social Feed, and Mod Planner (catalog + persisted build editor + share-to-feed) are implemented. Recommend the smallest reviewable AI chat slice next. Do not code unless explicitly asked.
 ```

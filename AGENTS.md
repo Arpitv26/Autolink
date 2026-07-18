@@ -16,7 +16,7 @@ Goal: All-in-one AI-powered mobile app for car enthusiasts to plan mods, check c
 
 Stack: Expo (React Native) + TypeScript | Supabase (PostgreSQL + Auth + Storage) | OpenAI GPT-4o mini | NHTSA vPIC + CarQuery APIs
 
-Current Phase: Phase 2 complete — next milestone is Phase 3 Mod Planner
+Current Phase: Phase 3 in progress — Mod Planner core shipped; AI is next
 
 Target: Polished recruiter-facing demo | 12-week timeline | ≤$25/month budget
 
@@ -80,11 +80,11 @@ Current State (Update This!)
 
 Last Updated: July 18, 2026
 
-Working On: Expo Go smoke testing after vehicle-linked posts and Profile garage cleanup
+Working On: Physical-device smoke for Planner add/remove/reorder/share; then AI chat
 
-Recently Completed: hardened Foundation, setup gate, Social Feed, vehicle-linked posts (`posts.vehicle_id`), carousel pagination dots, Profile Posts vehicle filters, removed unused Garage "Vehicle posts" placeholder, CI/tests, and applied Supabase migrations
+Recently Completed: Foundation, Social Feed, vehicle-linked posts, Mod Planner schema/catalog/build editor with live cost, category move/reorder, share-build-to-Feed, CI/tests, and applied Supabase migrations
 
-Blocked By: Final Expo Go interaction pass requires a physical device
+Blocked By: Physical Expo Go pass for Planner gestures and share flow
 
 ---
 
@@ -124,17 +124,17 @@ Phase 2: Social Feed (Weeks 3–5)
 
 Phase 3: Mod Planner (Weeks 6–8)
 
-☐ Drag-and-drop canvas (react-native-reanimated)
+☒ Category-zone board with long-press move + reorder controls
 
-☐ Mocked parts catalog (static JSON, ~150 parts)
+☒ Mocked parts catalog (static JSON, 120 parts)
 
-☐ Filter by category/brand/price
+☒ Filter by category/brand/price/search
 
-☐ Real-time cost tracker
+☒ Real-time cost tracker
 
-☐ Save build to Supabase
+☒ Save build to Supabase (`builds` / `build_items`)
 
-☐ Share build to Social Feed
+☒ Share build to Social Feed (create-post with build link)
 
 Phase 4: AI Chat Assistant (Weeks 9–10)
 

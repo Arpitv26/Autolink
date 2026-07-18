@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,7 +16,24 @@ import { useAuth } from '../hooks/useAuth';
 import { useCreatePost } from '../hooks/useCreatePost';
 import { theme } from '../lib/theme';
 
+function firstParam(value: string | string[] | undefined): string | null {
+  if (typeof value === 'string' && value.trim().length > 0) return value;
+  if (Array.isArray(value) && typeof value[0] === 'string' && value[0].trim()) {
+    return value[0];
+  }
+  return null;
+}
+
 export default function CreatePostScreen() {
+  const params = useLocalSearchParams<{
+    vehicleId?: string | string[];
+    buildId?: string | string[];
+    caption?: string | string[];
+  }>();
+  const initialVehicleId = useMemo(() => firstParam(params.vehicleId), [params.vehicleId]);
+  const buildId = useMemo(() => firstParam(params.buildId), [params.buildId]);
+  const initialCaption = useMemo(() => firstParam(params.caption) ?? '', [params.caption]);
+
   const { user } = useAuth();
   const {
     images,
@@ -30,8 +47,11 @@ export default function CreatePostScreen() {
     pickImages,
     removeImage,
     publish,
-  } = useCreatePost(user);
-  const [caption, setCaption] = useState<string>('');
+  } = useCreatePost(user, {
+    initialVehicleId,
+    buildId,
+  });
+  const [caption, setCaption] = useState<string>(initialCaption);
 
   const handlePublish = useCallback(async (): Promise<void> => {
     const published = await publish(caption);
@@ -59,10 +79,20 @@ export default function CreatePostScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.title}>Share a build update</Text>
-          <Text style={styles.subtitle}>
-            Choose up to five photos and tell the community what changed.
+          <Text style={styles.title}>
+            {buildId ? 'Share your build' : 'Share a build update'}
           </Text>
+          <Text style={styles.subtitle}>
+            {buildId
+              ? 'Add photos for this Planner build, then publish to the Feed.'
+              : 'Choose up to five photos and tell the community what changed.'}
+          </Text>
+          {buildId ? (
+            <View style={styles.buildLinkBanner}>
+              <Ionicons name="construct-outline" size={16} color={theme.colors.accentGreenMuted} />
+              <Text style={styles.buildLinkText}>Linked to your Planner build</Text>
+            </View>
+          ) : null}
 
           <Text style={styles.label}>Post about</Text>
           {loadingVehicles ? (
@@ -273,6 +303,24 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 14,
     lineHeight: 21,
+  },
+  buildLinkBanner: {
+    marginTop: -8,
+    marginBottom: 16,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrandSoft,
+    backgroundColor: theme.colors.surfaceBrand,
+    paddingHorizontal: 12,
+  },
+  buildLinkText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   label: {
     marginBottom: 7,
