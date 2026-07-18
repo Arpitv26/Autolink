@@ -9,6 +9,8 @@ type ProfileRow = {
   display_name: string | null;
   username: string;
   avatar_url: string | null;
+  bio: string | null;
+  pronouns: string | null;
 };
 
 type UseProfileDataFormResult = {
@@ -26,7 +28,7 @@ type UseProfileDataFormResult = {
   setPronouns: (value: string) => void;
   setBio: (value: string) => void;
   pickAvatarFromLibrary: () => Promise<void>;
-  save: () => Promise<void>;
+  save: () => Promise<boolean>;
   refresh: () => Promise<void>;
 };
 
@@ -81,7 +83,7 @@ export function useProfileDataForm(user: User | null): UseProfileDataFormResult 
 
     const { data, error: profileError } = await supabase
       .from('profiles')
-      .select('display_name, username, avatar_url')
+      .select('display_name, username, avatar_url, bio, pronouns')
       .eq('id', user.id)
       .maybeSingle<ProfileRow>();
 
@@ -95,9 +97,12 @@ export function useProfileDataForm(user: User | null): UseProfileDataFormResult 
     setUsername(data?.username ?? '');
     setAvatarUrl(data?.avatar_url ?? '');
     setPronouns(
-      typeof user.user_metadata?.pronouns === 'string' ? user.user_metadata.pronouns : ''
+      data?.pronouns ??
+        (typeof user.user_metadata?.pronouns === 'string' ? user.user_metadata.pronouns : '')
     );
-    setBio(typeof user.user_metadata?.bio === 'string' ? user.user_metadata.bio : '');
+    setBio(
+      data?.bio ?? (typeof user.user_metadata?.bio === 'string' ? user.user_metadata.bio : '')
+    );
     setLoading(false);
   }, [user]);
 
@@ -176,10 +181,10 @@ export function useProfileDataForm(user: User | null): UseProfileDataFormResult 
     }
   }, [user]);
 
-  const save = useCallback(async (): Promise<void> => {
+  const save = useCallback(async (): Promise<boolean> => {
     if (!user) {
       setError('No active user session.');
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -196,30 +201,20 @@ export function useProfileDataForm(user: User | null): UseProfileDataFormResult 
       .update({
         display_name: trimmedName.length > 0 ? trimmedName : null,
         avatar_url: trimmedAvatarUrl.length > 0 ? trimmedAvatarUrl : null,
+        pronouns: trimmedPronouns.length > 0 ? trimmedPronouns : null,
+        bio: trimmedBio.length > 0 ? trimmedBio : null,
       })
       .eq('id', user.id);
 
     if (updateProfileError) {
       setSaving(false);
       setError('Could not save profile details.');
-      return;
-    }
-
-    const { error: updateUserError } = await supabase.auth.updateUser({
-      data: {
-        pronouns: trimmedPronouns.length > 0 ? trimmedPronouns : null,
-        bio: trimmedBio.length > 0 ? trimmedBio : null,
-      },
-    });
-
-    if (updateUserError) {
-      setSaving(false);
-      setError('Saved name, but could not save pronouns.');
-      return;
+      return false;
     }
 
     setSaving(false);
     setSuccess('Profile details saved.');
+    return true;
   }, [avatarUrl, bio, displayName, pronouns, user]);
 
   return {

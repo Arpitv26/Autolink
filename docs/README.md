@@ -16,6 +16,18 @@
 
 ---
 
+## Current Implementation Status
+
+Foundation and the chronological Social Feed vertical slice are implemented. The app now has
+Google OAuth, a resumable profile/first-vehicle setup gate, profile/avatar editing, server-enforced
+garage entitlements, paginated posts, 1–5 image uploads, optimistic likes, threaded comments,
+follow/unfollow, and profile Posts/Favorites. Planner and AI are the remaining placeholder tabs;
+Planner is the next milestone.
+
+Backend behavior is migration-driven. Apply every file in `supabase/migrations/` before testing.
+
+---
+
 ## Table of Contents
 
 - [About the Project](#about-the-project)
@@ -100,8 +112,8 @@ An Instagram-style feed built specifically for car enthusiasts.
 ### Garage Profile
 Personalise the entire app experience around your specific car.
 
-- Sign in with Google or Apple (no password required)
-- Add up to 5 vehicles — validated against the **NHTSA vPIC API**
+- Sign in with Google (Apple Sign-In is deferred)
+- Save 1 vehicle on Free or up to 5 on Pro — validated against the **NHTSA vPIC API**
 - Vehicle context is automatically injected into every AI query
 - Profile page showcases your builds and posts
 
@@ -114,7 +126,7 @@ Personalise the entire app experience around your specific car.
 | **Mobile Framework** | Expo (React Native) + TypeScript | Fastest path to iOS + Android; Java background transfers to TS; 6× more job postings than Flutter |
 | **Backend / BaaS** | Supabase | Free tier covers demo; PostgreSQL is relational (perfect for cars/parts/users); auth + storage included |
 | **Database** | Supabase PostgreSQL | SQL knowledge transfers from CS coursework; predictable relational model |
-| **Authentication** | Supabase Auth (Google + Apple OAuth) | Zero config, social login only, built into Supabase |
+| **Authentication** | Supabase Auth (Google OAuth) | Passwordless social login; Apple Sign-In deferred |
 | **Image Storage** | Supabase Storage | 1GB free tier; direct upload from mobile; built-in CDN |
 | **AI API** | OpenAI GPT-4o mini | Best cost/quality ratio ($0.15/M input tokens); excellent automotive knowledge |
 | **Vehicle Data** | NHTSA vPIC + CarQuery API | Both 100% free, no API key needed; covers make/model/year/specs |
@@ -160,7 +172,7 @@ Personalise the entire app experience around your specific car.
 > 
 ### Prerequisites
 
-- Node.js `v18+`
+- Node.js `v20+` (Node 20–22 supported)
 - npm or yarn
 - Expo Go app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent))
 - A [Supabase](https://supabase.com) account (free)
@@ -176,26 +188,26 @@ cd autolink
 
 **2. Install dependencies**
 ```bash
-npm install -g @expo/cli
-npx expo install expo-router expo-image expo-av
-npx expo install react-native-reanimated react-native-gesture-handler
-npx expo install @supabase/supabase-js @react-native-async-storage/async-storage
+npm ci
 ```
 
 **3. Set up environment variables**
 
-Create a `.env` file in the root directory:
+Copy `.env.example` to `.env.local` in the root directory:
 ```env
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+EXPO_PUBLIC_DEV_BYPASS_PRO_VEHICLE_PAYWALL=false
 ```
 
-Do not place any OpenAI key in Expo client env vars. AI requests should go through a Supabase Edge Function proxy.
+The dev Pro flag only changes local UI gating; Supabase remains authoritative. Do not place any
+OpenAI or service-role key in Expo client env vars.
 
 **4. Set up Supabase**
 
-- Create a new project at [supabase.com](https://supabase.com)
-- Run the SQL schema from the [Database Schema](#-database-schema) section in the Supabase SQL editor
+- Create and link a project at [supabase.com](https://supabase.com)
+- Apply migrations with `npx supabase db push`
+- Optionally run `supabase/seed.sql` after at least one profile exists
 - Enable Google OAuth under **Authentication → Providers**
 
 **5. Run the app**
@@ -204,6 +216,13 @@ npx expo start
 ```
 
 Scan the QR code with Expo Go on your phone, or press `i` for iOS simulator / `a` for Android emulator.
+
+Run the quality gate with:
+
+```bash
+npm run verify
+npx expo-doctor
+```
 
 ---
 
@@ -228,103 +247,50 @@ autolink/
 │   │   ├── planner.tsx         # Modification Planner screen
 │   │   ├── feed.tsx            # Social Feed screen
 │   │   └── profile.tsx         # User Profile & Garage screen
-│   ├── onboarding/
-│   │   └── index.tsx           # Onboarding flow (3 screens)
+│   ├── onboarding.tsx          # Lightweight profile + first-vehicle setup gate
+│   ├── create-post.tsx         # 1–5 image post creation
+│   ├── post/[id].tsx           # Comments and replies
 │   └── _layout.tsx             # Root layout + auth gate
 ├── components/
-│   ├── ai/
-│   │   ├── ChatBubble.tsx      # Message bubble component
-│   │   └── TypingIndicator.tsx # AI typing animation
-│   ├── planner/
-│   │   ├── ModCard.tsx         # Draggable modification card
-│   │   └── CategoryZone.tsx    # Drop zone for mod categories
 │   ├── feed/
-│   │   ├── PostCard.tsx        # Social post card
-│   │   └── CommentThread.tsx   # Nested comments component
-│   └── ui/                     # Shared UI components
+│   │   └── PostCard.tsx        # Social post card
+│   └── profile/                # Shared garage, vehicle, and profile-post UI
 ├── lib/
 │   ├── supabase.ts             # Supabase client configuration
-│   ├── ai.ts                   # AI hook/client calling Supabase Edge Function
-│   └── nhtsa.ts                # NHTSA vehicle API helpers
+│   ├── nhtsa.ts                # NHTSA vehicle API helpers
+│   ├── onboarding.ts           # Pure completion rules
+│   └── entitlements.ts         # Pure plan-limit rules
 ├── hooks/
-│   ├── useAutoLinkAI.ts        # AI chat state management hook
-│   ├── useGarage.ts            # User's vehicle garage hook
-│   └── useFeed.ts              # Social feed with pagination hook
-├── constants/
-│   ├── mockParts.json          # ~150 mocked aftermarket parts
-│   └── systemPrompt.ts         # AutoLink AI system prompt
+│   ├── useGarageSetup.ts       # Garage data and mutations
+│   ├── useOnboarding.tsx       # Setup status provider
+│   ├── useCreatePost.ts        # Image upload and post creation
+│   └── useFeed.ts              # Paginated feed + social mutations
 ├── assets/                     # Images, icons, fonts
 └── supabase/
-    └── schema.sql              # Full database schema
+    ├── migrations/             # Backend source of truth
+    └── seed.sql                # Optional demo posts
 ```
 
 ---
 
 ## Database Schema
 
-AutoLink uses PostgreSQL via Supabase. Here's the core data model:
+Supabase migrations are the only schema source of truth. The implemented model currently includes:
 
-```sql
--- User Profiles (extends Supabase Auth)
-create table profiles (
-  id              uuid references auth.users primary key,
-  username        text unique not null,
-  display_name    text,
-  avatar_url      text,
-  garage_vehicles jsonb,    -- [{ make, model, year, trim }]
-  created_at      timestamptz default now()
-);
+- `profiles` and `vehicles`, with server-managed Pro entitlement and atomic primary-vehicle RPCs
+- `posts`, `likes`, `comments`, and `follows`, with indexed chronological reads
+- trigger-maintained post counters
+- public `avatars` and `post-images` buckets with owner-scoped write policies
+- Row Level Security on every app table
 
--- Car Builds
-create table builds (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references profiles(id),
-  title       text not null,
-  vehicle     jsonb,        -- { make, model, year, trim }
-  description text,
-  is_public   boolean default true,
-  created_at  timestamptz default now()
-);
-
--- Modifications on a Build
-create table mods (
-  id         uuid primary key default gen_random_uuid(),
-  build_id   uuid references builds(id) on delete cascade,
-  category   text,         -- 'suspension', 'exhaust', 'wheels', etc.
-  part_name  text,
-  brand      text,
-  price      numeric,
-  notes      text,
-  position_x float,        -- for drag-and-drop planner canvas
-  position_y float
-);
-
--- Social Posts
-create table posts (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references profiles(id),
-  build_id    uuid references builds(id),
-  caption     text,
-  image_urls  text[],
-  likes_count int default 0,
-  created_at  timestamptz default now()
-);
-
--- Comments
-create table comments (
-  id         uuid primary key default gen_random_uuid(),
-  post_id    uuid references posts(id) on delete cascade,
-  user_id    uuid references profiles(id),
-  content    text not null,
-  created_at timestamptz default now()
-);
-```
-
-**Row Level Security (RLS)** is enabled on all tables — users can only modify their own data.
+Planner/build tables are intentionally deferred until the Planner milestone. See
+`supabase/migrations/` for exact SQL and policy definitions.
 
 ---
 
 ## AI Assistant
+
+> Planned milestone. The current AI tab is a placeholder.
 
 ### How It Works
 
@@ -412,11 +378,11 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 
 | Phase | Weeks | Milestone | Status |
 |---|---|---|---|
-| **Foundation** | 1–2 | Expo scaffold, Supabase setup, Google auth, tab navigation, vehicle garage | 🔄 In Progress |
-| **AI Core** | 3–6 | GPT-4o mini integration, chat UI, vehicle context injection, rate limiting | ⏳ Upcoming |
-| **Planner** | 7–8 | Drag-and-drop canvas, mocked parts catalogue, cost tracker, save to DB | ⏳ Upcoming |
-| **Social** | 9–10 | Infinite scroll feed, image uploads, likes/comments, follow system | ⏳ Upcoming |
-| **Polish** | 11–12 | Onboarding flow, empty states, EAS Build, TestFlight deploy, demo video | ⏳ Upcoming |
+| **Foundation** | 1–2 | Auth, setup gate, profile, server-enforced garage, quality baseline | ✅ Implemented |
+| **Social Feed** | 3–5 | Pagination, image posts, likes, comments, follows, profile sections | ✅ Implemented |
+| **Planner** | 6–8 | Drag-and-drop canvas, mocked parts catalogue, cost tracker, persistence | ⏳ Next |
+| **AI Core** | 9–10 | Edge Function proxy, chat UI, vehicle context, rate limiting | ⏳ Upcoming |
+| **Polish** | 11–12 | Device hardening, EAS builds, store previews, demo video | ⏳ Upcoming |
 
 ### What's Real vs. Mocked in the Demo
 
@@ -427,7 +393,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 | User auth + profiles | **REAL** — Supabase Auth | Easy to implement; shows security awareness |
 | Parts catalogue | **MOCKED** — static JSON (~150 parts) | Real APIs cost $1,000+/year |
 | Part compatibility | **HYBRID** — AI reasons about it | Sufficient for demo with appropriate caveats |
-| Social feed posts | **REAL** — Supabase DB | Pre-populated with 10–15 seed posts |
+| Social feed posts | **REAL** — Supabase DB | Optional idempotent demo seed included |
 | Image uploads | **REAL** — Supabase Storage | Required for authentic social feel |
 
 ---

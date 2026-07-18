@@ -16,7 +16,7 @@ Goal: All-in-one AI-powered mobile app for car enthusiasts to plan mods, check c
 
 Stack: Expo (React Native) + TypeScript | Supabase (PostgreSQL + Auth + Storage) | OpenAI GPT-4o mini | NHTSA vPIC + CarQuery APIs
 
-Current Phase: Phase 1 — Foundation
+Current Phase: Phase 2 complete — next milestone is Phase 3 Mod Planner
 
 Target: Polished recruiter-facing demo | 12-week timeline | ≤$25/month budget
 
@@ -78,13 +78,13 @@ agent_docs/testing.md — Verification strategy and commands
 
 Current State (Update This!)
 
-Last Updated: May 25, 2026
+Last Updated: July 18, 2026
 
-Working On: Phase 1 visual validation after warm dark theme + Profile tab redesign
+Working On: Applying Foundation/Feed migrations and completing the physical-device smoke pass
 
-Recently Completed: Expo scaffold, Supabase auth (Google OAuth), tab navigation, garage year/make/model flow, profile editing/avatar upload, Pro vehicle gate, cross-tab primary vehicle context, warm dark theme, non-Instagram Profile tab redesign
+Recently Completed: hardened Foundation, reusable garage/profile UI, setup gate, server-enforced entitlements/vehicle rules, paginated Social Feed, post images, likes, threaded comments, follows, profile Posts/Favorites, targeted tests, and CI
 
-Blocked By: None
+Blocked By: Final Expo Go interaction pass requires a physical device
 
 ---
 
@@ -92,31 +92,31 @@ Roadmap
 
 Phase 1: Foundation (Weeks 1–2)
 
-☐ Scaffold Expo project with TypeScript template
+☒ Scaffold Expo project with TypeScript template
 
-☐ Connect Supabase (env vars, client setup)
+☒ Connect Supabase (env vars, client setup)
 
-☐ Implement Supabase Auth (Google OAuth)
+☒ Implement Supabase Auth (Google OAuth)
 
-☐ Build bottom tab navigation (AI, Planner, Feed, Profile)
+☒ Build bottom tab navigation (Feed, Planner, AI, Profile)
 
-☐ Vehicle garage setup flow (NHTSA vPIC API for make/model/year)
+☒ Vehicle garage setup flow (NHTSA vPIC API for make/model/year)
 
-☐ Deploy placeholder screens to phone via Expo Go
+☒ Deploy placeholder screens to phone via Expo Go
 
 Phase 2: Social Feed (Weeks 3–5)
 
-☐ Infinite scroll feed (FlatList + Supabase query)
+☒ Infinite scroll feed (FlatList + Supabase query)
 
-☐ Image upload (expo-image-picker → Supabase Storage)
+☒ Image upload (expo-image-picker → Supabase Storage)
 
-☐ Like/unlike posts (optimistic UI update)
+☒ Like/unlike posts (optimistic UI update)
 
-☐ Comment threads
+☒ Comment threads
 
-☐ Follow/unfollow users
+☒ Follow/unfollow users
 
-☐ Seed 10–15 demo posts
+☒ Add idempotent optional demo seed (`supabase/seed.sql`)
 
 Phase 3: Mod Planner (Weeks 6–8)
 

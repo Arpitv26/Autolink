@@ -1,17 +1,20 @@
 import type { User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  FREE_PLAN_VEHICLE_LIMIT,
+  getVehicleLimit,
+  PRO_PLAN_VEHICLE_LIMIT,
+} from '../lib/entitlements';
 import { fetchMakesByYear, fetchModelsByYearMake, NhtsaMake, NhtsaModel } from '../lib/nhtsa';
 import { ensureUserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
 
 const START_YEAR = 1985;
-const FREE_PLAN_VEHICLE_LIMIT = 1;
-const MAX_VEHICLES = 5;
 const DEV_BYPASS_PRO_VEHICLE_PAYWALL = parseBooleanEnvFlag(
   process.env.EXPO_PUBLIC_DEV_BYPASS_PRO_VEHICLE_PAYWALL
 );
 
-type SavedVehicle = {
+export type SavedVehicle = {
   id: string;
   make: string;
   model: string;
@@ -119,7 +122,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
 
   const canUseProVehicles = isProMember || DEV_BYPASS_PRO_VEHICLE_PAYWALL;
   const hasFreeVehicleLimitReached = savedVehicles.length >= FREE_PLAN_VEHICLE_LIMIT;
-  const hasMaxVehicleLimitReached = savedVehicles.length >= MAX_VEHICLES;
+  const hasMaxVehicleLimitReached = savedVehicles.length >= PRO_PLAN_VEHICLE_LIMIT;
   const requiresProForAdditionalVehicles = hasFreeVehicleLimitReached && !canUseProVehicles;
   const canSaveVehicle = Boolean(
     user &&
@@ -347,20 +350,9 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       try {
         await ensureUserProfile(user);
 
-        const { error: clearPrimaryError } = await supabase
-          .from('vehicles')
-          .update({ is_primary: false })
-          .eq('user_id', user.id);
-
-        if (clearPrimaryError) {
-          throw new Error('Could not switch active vehicle.');
-        }
-
-        const { error: setPrimaryError } = await supabase
-          .from('vehicles')
-          .update({ is_primary: true })
-          .eq('id', vehicleId)
-          .eq('user_id', user.id);
+        const { error: setPrimaryError } = await supabase.rpc('set_primary_vehicle', {
+          target_vehicle_id: vehicleId,
+        });
 
         if (setPrimaryError) {
           throw new Error('Could not switch active vehicle.');
@@ -412,7 +404,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
             make: selectedMake.makeName,
             model: selectedModel.modelName,
             year: parsedYear,
-            is_primary: true,
           })
           .eq('id', primaryVehicle.id)
           .eq('user_id', user.id);
@@ -429,7 +420,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
             make: selectedMake.makeName,
             model: selectedModel.modelName,
             year: parsedYear,
-            is_primary: true,
           })
           .select('id')
           .single<{ id: string }>();
@@ -440,14 +430,14 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
         nextPrimaryId = insertedVehicle.id;
       }
 
-      const { error: normalizeError } = await supabase
-        .from('vehicles')
-        .update({ is_primary: false })
-        .eq('user_id', user.id)
-        .neq('id', nextPrimaryId);
+      if (nextPrimaryId) {
+        const { error: primaryError } = await supabase.rpc('set_primary_vehicle', {
+          target_vehicle_id: nextPrimaryId,
+        });
 
-      if (normalizeError) {
-        throw new Error('Vehicle saved, but could not finalize primary vehicle state.');
+        if (primaryError) {
+          throw new Error('Vehicle saved, but could not finalize primary vehicle state.');
+        }
       }
 
       await loadSavedVehicles();
@@ -466,7 +456,9 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     }
 
     if (hasMaxVehicleLimitReached) {
-      setError(`Vehicle limit reached. You can save up to ${MAX_VEHICLES} vehicles.`);
+      setError(
+        `Vehicle limit reached. You can save up to ${PRO_PLAN_VEHICLE_LIMIT} vehicles.`
+      );
       return;
     }
 
@@ -502,8 +494,10 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
         throw new Error('Could not validate vehicle limit.');
       }
 
-      if ((count ?? 0) >= MAX_VEHICLES) {
-        throw new Error(`Vehicle limit reached. You can save up to ${MAX_VEHICLES} vehicles.`);
+      if ((count ?? 0) >= getVehicleLimit(canUseProVehicles)) {
+        throw new Error(
+          `Vehicle limit reached. You can save up to ${getVehicleLimit(canUseProVehicles)} vehicles.`
+        );
       }
 
       const { error: insertError } = await supabase.from('vehicles').insert({
@@ -511,7 +505,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
         make: selectedMake.makeName,
         model: selectedModel.modelName,
         year: parsedYear,
-        is_primary: !primaryVehicle,
       });
 
       if (insertError) {
@@ -527,6 +520,7 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
     }
   }, [
     hasMaxVehicleLimitReached,
+    canUseProVehicles,
     loadSavedVehicles,
     primaryVehicle,
     requiresProForAdditionalVehicles,
@@ -549,11 +543,6 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
         return;
       }
 
-      if (savedVehicles.length <= 1) {
-        setError('You must keep at least one vehicle.');
-        return;
-      }
-
       setDeletingVehicleId(vehicleId);
       setError(null);
       setSuccessMessage(null);
@@ -561,38 +550,9 @@ export function useGarageSetup(user: User | null): UseGarageSetupResult {
       try {
         await ensureUserProfile(user);
 
-        if (targetVehicle.isPrimary) {
-          const nextPrimary = savedVehicles.find((item) => item.id !== vehicleId);
-          if (!nextPrimary) {
-            throw new Error('Could not assign a new primary vehicle.');
-          }
-
-          const { error: clearPrimaryError } = await supabase
-            .from('vehicles')
-            .update({ is_primary: false })
-            .eq('id', vehicleId)
-            .eq('user_id', user.id);
-
-          if (clearPrimaryError) {
-            throw new Error('Could not update primary vehicle state.');
-          }
-
-          const { error: setPrimaryError } = await supabase
-            .from('vehicles')
-            .update({ is_primary: true })
-            .eq('id', nextPrimary.id)
-            .eq('user_id', user.id);
-
-          if (setPrimaryError) {
-            throw new Error('Could not assign a new primary vehicle.');
-          }
-        }
-
-        const { error: deleteError } = await supabase
-          .from('vehicles')
-          .delete()
-          .eq('id', vehicleId)
-          .eq('user_id', user.id);
+        const { error: deleteError } = await supabase.rpc('delete_vehicle_and_reassign', {
+          target_vehicle_id: vehicleId,
+        });
 
         if (deleteError) {
           throw new Error('Could not delete vehicle.');

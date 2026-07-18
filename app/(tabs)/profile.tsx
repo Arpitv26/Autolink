@@ -15,51 +15,29 @@ import {
   Text,
   View,
 } from 'react-native';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import Reanimated, {
-  LinearTransition,
   SlideInLeft,
   SlideInRight,
   SlideOutLeft,
   SlideOutRight,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GarageVehicleList } from '../../components/profile/GarageVehicleList';
+import { ProfilePostList } from '../../components/profile/ProfilePostList';
+import { VehicleSetupForm } from '../../components/profile/VehicleSetupForm';
 import { useAuth } from '../../hooks/useAuth';
 import { useGarageSetup } from '../../hooks/useGarageSetup';
+import { useProfileFeedSections } from '../../hooks/useProfileFeedSections';
 import { useProfileIdentity } from '../../hooks/useProfileIdentity';
 import { theme } from '../../lib/theme';
 
-type DropdownOption = {
-  label: string;
-  value: string;
-};
-
-type DropdownKey = 'vehicle' | 'year' | 'make' | 'model';
-type SaveUiState = 'idle' | 'saving' | 'success';
 type ProfileSection = 'vehicles' | 'posts' | 'favorites';
 type PendingVehicleDeletion = {
   id: string;
   label: string;
 };
 
-const VEHICLE_CARD_LAYOUT_TRANSITION = LinearTransition.duration(260);
 const PROFILE_SECTION_ORDER: ProfileSection[] = ['vehicles', 'posts', 'favorites'];
-
-type ActiveDropdown = {
-  title: string;
-  value: string | null;
-  options: DropdownOption[];
-  emptyText: string;
-  onSelect: (value: string) => void;
-};
-
-type DropdownFieldProps = {
-  label: string;
-  valueLabel: string | null;
-  placeholder: string;
-  disabled?: boolean;
-  onPress: () => void;
-};
 
 function ProfileSectionIcon({
   section,
@@ -82,47 +60,9 @@ function ProfileSectionIcon({
   return <Ionicons name="heart-outline" size={size} color={color} />;
 }
 
-function DropdownField({
-  label,
-  valueLabel,
-  placeholder,
-  disabled = false,
-  onPress,
-}: DropdownFieldProps) {
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Pressable
-        disabled={disabled}
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.dropdownButton,
-          disabled && styles.dropdownButtonDisabled,
-          pressed && !disabled && styles.buttonPressed,
-        ]}
-      >
-        <Text
-          style={[
-            styles.dropdownValue,
-            !valueLabel && styles.dropdownPlaceholder,
-            disabled && styles.dropdownValueDisabled,
-          ]}
-          numberOfLines={1}
-        >
-          {valueLabel ?? placeholder}
-        </Text>
-        <Ionicons
-          name="chevron-down"
-          size={18}
-          color={disabled ? theme.colors.textDisabled : theme.colors.textMuted}
-        />
-      </Pressable>
-    </View>
-  );
-}
-
 export default function ProfileScreen() {
   const { user } = useAuth();
+  const profileFeed = useProfileFeedSections(user?.id ?? null);
   const {
     year,
     yearOptions,
@@ -157,8 +97,6 @@ export default function ProfileScreen() {
     deleteVehicle,
   } = useGarageSetup(user);
 
-  const [activeDropdownKey, setActiveDropdownKey] = useState<DropdownKey | null>(null);
-  const [saveUiState, setSaveUiState] = useState<SaveUiState>('idle');
   const [activeSection, setActiveSection] = useState<ProfileSection>('vehicles');
   const [tabTransitionDirection, setTabTransitionDirection] = useState<1 | -1>(1);
   const [tabsBarWidth, setTabsBarWidth] = useState(0);
@@ -168,17 +106,12 @@ export default function ProfileScreen() {
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
   const [pendingVehicleDeletion, setPendingVehicleDeletion] =
     useState<PendingVehicleDeletion | null>(null);
-  const [saveSuccessLabel, setSaveSuccessLabel] = useState('Vehicle Saved');
-  const [showSaveSuccessOverlay, setShowSaveSuccessOverlay] = useState(false);
-  const [saveButtonWidth, setSaveButtonWidth] = useState(0);
-  const saveSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastHandledSuccessRef = useRef<string | null>(null);
-  const saveSuccessTranslateX = useRef(new RNAnimated.Value(0)).current;
   const tabIndicatorTranslateX = useRef(new RNAnimated.Value(0)).current;
   const {
     username: profileUsername,
     displayName: profileDisplayName,
     avatarUrl: profileAvatarUrl,
+    bio: profileBioValue,
     loading: profileIdentityLoading,
     error: profileIdentityError,
     refresh: refreshProfileIdentity,
@@ -213,21 +146,10 @@ export default function ProfileScreen() {
   }, [profileUsername, user?.email]);
 
   const profileBio = useMemo(() => {
-    const fromMetadata = typeof user?.user_metadata?.bio === 'string' ? user.user_metadata.bio : '';
-    const trimmed = fromMetadata.trim();
+    const trimmed = profileBioValue.trim();
     if (trimmed.length > 0) return trimmed;
     return 'Car enthusiast on AutoLink';
-  }, [user]);
-
-  const selectedMake = useMemo(
-    () => makes.find((item) => item.makeId === selectedMakeId) ?? null,
-    [makes, selectedMakeId]
-  );
-
-  const selectedModel = useMemo(
-    () => models.find((item) => item.modelId === selectedModelId) ?? null,
-    [models, selectedModelId]
-  );
+  }, [profileBioValue]);
 
   const activeVehicle = useMemo(() => {
     if (activeVehicleId) {
@@ -312,104 +234,6 @@ export default function ProfileScreen() {
     ]
   );
 
-  const vehicleOptionsForDropdown = useMemo<DropdownOption[]>(
-    () =>
-      savedVehicles.map((item) => ({
-        label: `${item.year} ${item.make} ${item.model}`,
-        value: item.id,
-      })),
-    [savedVehicles]
-  );
-
-  const yearOptionsForDropdown = useMemo<DropdownOption[]>(
-    () => yearOptions.map((item) => ({ label: item, value: item })),
-    [yearOptions]
-  );
-
-  const makeOptionsForDropdown = useMemo<DropdownOption[]>(
-    () =>
-      makes.map((item) => ({
-        label: item.makeName,
-        value: String(item.makeId),
-      })),
-    [makes]
-  );
-
-  const modelOptionsForDropdown = useMemo<DropdownOption[]>(
-    () =>
-      models.map((item) => ({
-        label: item.modelName,
-        value: String(item.modelId),
-      })),
-    [models]
-  );
-
-  const activeDropdown = useMemo<ActiveDropdown | null>(() => {
-    switch (activeDropdownKey) {
-      case 'vehicle':
-        return {
-          title: 'Select vehicle',
-          value: activeVehicle?.id ?? null,
-          options: vehicleOptionsForDropdown,
-          emptyText: 'No saved vehicles.',
-          onSelect: (value: string) => handleSelectVehicle(value),
-        };
-      case 'year':
-        return {
-          title: 'Select model year',
-          value: year.length === 4 ? year : null,
-          options: yearOptionsForDropdown,
-          emptyText: 'No years available.',
-          onSelect: (value: string) => setYear(value),
-        };
-      case 'make':
-        return {
-          title: 'Select make',
-          value: selectedMakeId ? String(selectedMakeId) : null,
-          options: makeOptionsForDropdown,
-          emptyText: loadingMakes ? 'Loading makes...' : 'No makes available.',
-          onSelect: (value: string) => setSelectedMakeId(Number(value)),
-        };
-      case 'model':
-        return {
-          title: 'Select model',
-          value: selectedModelId ? String(selectedModelId) : null,
-          options: modelOptionsForDropdown,
-          emptyText: loadingModels ? 'Loading models...' : 'No models available.',
-          onSelect: (value: string) => setSelectedModelId(Number(value)),
-        };
-      default:
-        return null;
-    }
-  }, [
-    activeVehicle?.id,
-    activeDropdownKey,
-    loadingMakes,
-    loadingModels,
-    makeOptionsForDropdown,
-    modelOptionsForDropdown,
-    selectedMakeId,
-    selectedModelId,
-    handleSelectVehicle,
-    setSelectedMakeId,
-    setSelectedModelId,
-    setYear,
-    vehicleOptionsForDropdown,
-    year,
-    yearOptionsForDropdown,
-  ]);
-
-  const openDropdown = (key: DropdownKey): void => {
-    if (savingVehicle) return;
-    if (key === 'make' && (year.length !== 4 || loadingMakes)) return;
-    if (key === 'model' && (!selectedMakeId || loadingModels)) return;
-    setActiveDropdownKey(key);
-  };
-
-  const closeDropdown = (): void => {
-    setActiveDropdownKey(null);
-  };
-
   useEffect(() => {
     if (tabSegmentWidth <= 0 || tabIndicatorWidth <= 0) return;
 
@@ -421,75 +245,6 @@ export default function ProfileScreen() {
       useNativeDriver: true,
     }).start();
   }, [activeSectionIndex, tabIndicatorTranslateX, tabIndicatorWidth, tabSegmentWidth]);
-
-  useEffect(() => {
-    return () => {
-      if (saveSuccessTimeoutRef.current) {
-        clearTimeout(saveSuccessTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (savingVehicle) {
-      if (saveSuccessTimeoutRef.current) {
-        clearTimeout(saveSuccessTimeoutRef.current);
-      }
-      setSaveUiState('saving');
-      setShowSaveSuccessOverlay(false);
-      saveSuccessTranslateX.setValue(0);
-      lastHandledSuccessRef.current = null;
-      return;
-    }
-
-    if (successMessage && successMessage !== lastHandledSuccessRef.current) {
-      lastHandledSuccessRef.current = successMessage;
-      const normalizedMessage = successMessage.toLowerCase();
-      if (normalizedMessage.includes('added')) {
-        setSaveSuccessLabel('Vehicle Added');
-      } else if (normalizedMessage.includes('deleted')) {
-        setSaveSuccessLabel('Vehicle Deleted');
-      } else if (normalizedMessage.includes('switched')) {
-        setSaveSuccessLabel('Vehicle Switched');
-      } else {
-        setSaveSuccessLabel('Vehicle Saved');
-      }
-      setSaveUiState('success');
-      setShowSaveSuccessOverlay(true);
-      saveSuccessTranslateX.stopAnimation();
-      saveSuccessTranslateX.setValue(0);
-
-      if (saveSuccessTimeoutRef.current) {
-        clearTimeout(saveSuccessTimeoutRef.current);
-      }
-
-      saveSuccessTimeoutRef.current = setTimeout(() => {
-        RNAnimated.timing(saveSuccessTranslateX, {
-          toValue: -(saveButtonWidth || 320),
-          duration: 520,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start(() => {
-          setShowSaveSuccessOverlay(false);
-          saveSuccessTranslateX.setValue(0);
-          setSaveUiState('idle');
-        });
-        saveSuccessTimeoutRef.current = null;
-      }, 900);
-      return;
-    }
-
-    if (error) {
-      setSaveUiState('idle');
-      setShowSaveSuccessOverlay(false);
-      saveSuccessTranslateX.setValue(0);
-      return;
-    }
-
-    if (saveUiState !== 'success') {
-      setSaveUiState('idle');
-    }
-  }, [error, saveButtonWidth, saveSuccessTranslateX, saveUiState, savingVehicle, successMessage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -719,89 +474,16 @@ export default function ProfileScreen() {
                         </View>
                       ) : null}
                     </View>
-                    <View style={styles.savedVehiclesList}>
-                      {orderedVehicles.map((vehicle) => {
-                        const isPrimaryVehicle = vehicle.id === primaryVehicle?.id;
-                        const isActiveVehicle = vehicle.id === activeVehicle?.id;
-                        const isSwitchingThisVehicle = switchingVehicleId === vehicle.id;
-                        const isDeleteInProgress = deletingVehicleId === vehicle.id;
-                        const switchDisabled =
-                          isActiveVehicle ||
-                          savingVehicle ||
-                          Boolean(switchingVehicleId) ||
-                          Boolean(deletingVehicleId);
-                        const deleteDisabled =
-                          orderedVehicles.length <= 1 ||
-                          savingVehicle ||
-                          Boolean(switchingVehicleId) ||
-                          Boolean(deletingVehicleId);
-
-                        return (
-                          <Reanimated.View
-                            key={vehicle.id}
-                            layout={VEHICLE_CARD_LAYOUT_TRANSITION}
-                            style={[
-                              styles.savedVehicleCard,
-                              isActiveVehicle && styles.savedVehicleCardPrimary,
-                            ]}
-                          >
-                            <View style={styles.savedVehicleRow}>
-                              <Text style={styles.savedVehicleName}>
-                                {vehicle.year} {vehicle.make} {vehicle.model}
-                              </Text>
-                              {isActiveVehicle ? (
-                                <View style={styles.savedVehiclePrimaryBadge}>
-                                  <Text style={styles.savedVehiclePrimaryBadgeText}>
-                                    {isPrimaryVehicle ? 'Primary' : 'Active'}
-                                  </Text>
-                                </View>
-                              ) : null}
-                            </View>
-
-                            <View style={styles.savedVehicleActionsRow}>
-                              <Pressable
-                                onPress={() => handleSelectVehicle(vehicle.id)}
-                                disabled={switchDisabled}
-                                style={({ pressed }) => [
-                                  styles.savedVehicleSwitchButton,
-                                  switchDisabled && styles.savedVehicleSwitchButtonDisabled,
-                                  pressed && !switchDisabled && styles.buttonPressed,
-                                ]}
-                              >
-                                {isSwitchingThisVehicle ? (
-                                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
-                                ) : (
-                                  <Text
-                                    style={[
-                                      styles.savedVehicleSwitchButtonText,
-                                      switchDisabled && styles.savedVehicleSwitchButtonTextDisabled,
-                                    ]}
-                                  >
-                                    {isActiveVehicle ? 'Active' : 'Set active'}
-                                  </Text>
-                                )}
-                              </Pressable>
-
-                              <Pressable
-                                onPress={() => handleDeleteVehicle(vehicle.id)}
-                                disabled={deleteDisabled}
-                                style={({ pressed }) => [
-                                  styles.savedVehicleDeleteButton,
-                                  deleteDisabled && styles.savedVehicleDeleteButtonDisabled,
-                                  pressed && !deleteDisabled && styles.buttonPressed,
-                                ]}
-                              >
-                                {isDeleteInProgress ? (
-                                  <ActivityIndicator size="small" color={theme.colors.textPrimary} />
-                                ) : (
-                                  <Ionicons name="trash-outline" size={16} color={theme.colors.textPrimary} />
-                                )}
-                              </Pressable>
-                            </View>
-                          </Reanimated.View>
-                        );
-                      })}
-                    </View>
+                    <GarageVehicleList
+                      vehicles={orderedVehicles}
+                      activeVehicleId={activeVehicle?.id ?? null}
+                      primaryVehicleId={primaryVehicle?.id ?? null}
+                      switchingVehicleId={switchingVehicleId}
+                      deletingVehicleId={deletingVehicleId}
+                      mutationInProgress={savingVehicle}
+                      onActivate={handleSelectVehicle}
+                      onDelete={handleDeleteVehicle}
+                    />
                   </View>
                 </>
               ) : (
@@ -857,82 +539,25 @@ export default function ProfileScreen() {
 
               {manageVehicleExpanded ? (
                 <>
-                  <DropdownField
-                    label="Model Year"
-                    valueLabel={year.length === 4 ? year : null}
-                    placeholder="Select year"
-                    onPress={() => openDropdown('year')}
-                  />
-
-                  <DropdownField
-                    label="Make"
-                    valueLabel={selectedMake?.makeName ?? null}
-                    placeholder={
-                      loadingMakes
-                        ? 'Loading makes...'
-                        : year.length === 4
-                          ? 'Select make'
-                          : 'Select year first'
+                  <VehicleSetupForm
+                    year={year}
+                    yearOptions={yearOptions}
+                    makes={makes}
+                    models={models}
+                    selectedMakeId={selectedMakeId}
+                    selectedModelId={selectedModelId}
+                    loadingMakes={loadingMakes}
+                    loadingModels={loadingModels}
+                    actionLabel={
+                      primaryVehicle ? 'Replace Active Vehicle Details' : 'Save First Vehicle'
                     }
-                    disabled={year.length !== 4 || loadingMakes}
-                    onPress={() => openDropdown('make')}
+                    actionEnabled={canSaveVehicle}
+                    actionBusy={savingVehicle}
+                    onYearChange={setYear}
+                    onMakeChange={setSelectedMakeId}
+                    onModelChange={setSelectedModelId}
+                    onSubmit={handleSaveVehicle}
                   />
-
-                  <DropdownField
-                    label="Model"
-                    valueLabel={selectedModel?.modelName ?? null}
-                    placeholder={
-                      loadingModels
-                        ? 'Loading models...'
-                        : selectedMakeId
-                          ? 'Select model'
-                          : 'Select make first'
-                    }
-                    disabled={!selectedMakeId || loadingModels}
-                    onPress={() => openDropdown('model')}
-                  />
-
-                  <Pressable
-                    onPress={handleSaveVehicle}
-                    disabled={!canSaveVehicle || saveUiState === 'success'}
-                    style={({ pressed }) => [
-                      styles.saveButtonPressable,
-                      !canSaveVehicle && styles.saveButtonDisabled,
-                      pressed && canSaveVehicle && saveUiState !== 'success' && styles.buttonPressed,
-                    ]}
-                  >
-                    <View
-                      style={styles.saveButton}
-                      onLayout={(event) => {
-                        const measuredWidth = event.nativeEvent.layout.width;
-                        if (measuredWidth > 0 && measuredWidth !== saveButtonWidth) {
-                          setSaveButtonWidth(measuredWidth);
-                        }
-                      }}
-                    >
-                      {saveUiState === 'saving' ? (
-                        <ActivityIndicator color={theme.colors.textInverse} />
-                      ) : (
-                        <Text style={styles.saveButtonText}>Save Vehicle</Text>
-                      )}
-
-                      {showSaveSuccessOverlay ? (
-                        <RNAnimated.View
-                          style={[
-                            styles.saveSuccessOverlay,
-                            {
-                              transform: [{ translateX: saveSuccessTranslateX }],
-                            },
-                          ]}
-                        >
-                          <View style={styles.saveSuccessRow}>
-                            <Ionicons name="checkmark" size={18} color={theme.colors.textInverse} />
-                            <Text style={styles.saveButtonText}>{saveSuccessLabel}</Text>
-                          </View>
-                        </RNAnimated.View>
-                      ) : null}
-                    </View>
-                  </Pressable>
 
                   {error ? (
                     <View style={styles.manageErrorBlock}>
@@ -954,6 +579,9 @@ export default function ProfileScreen() {
                         <Text style={styles.manageErrorRetryButtonText}>Retry Sync</Text>
                       </Pressable>
                     </View>
+                  ) : null}
+                  {successMessage ? (
+                    <Text style={styles.manageSuccessText}>{successMessage}</Text>
                   ) : null}
 
                   <View style={[styles.proCard, styles.manageProCard]}>
@@ -1013,117 +641,27 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : activeSection === 'posts' ? (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Ionicons name="images-outline" size={42} color={theme.colors.iconSubtle} />
-            <Text style={styles.emptyTitle}>No posts yet</Text>
-            <Text style={styles.emptyText}>
-              Share your first build update once feed posting goes live.
-            </Text>
-          </View>
+          <ProfilePostList
+            items={profileFeed.posts}
+            loading={profileFeed.loading}
+            error={profileFeed.error}
+            emptyIcon="images-outline"
+            emptyTitle="No posts yet"
+            emptyBody="Share your first build update from the Feed."
+          />
         ) : (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Ionicons name="heart-outline" size={42} color={theme.colors.iconSubtle} />
-            <Text style={styles.emptyTitle}>No favorites yet</Text>
-            <Text style={styles.emptyText}>
-              Save parts, posts, or builds to quickly revisit them later.
-            </Text>
-          </View>
+          <ProfilePostList
+            items={profileFeed.favorites}
+            loading={profileFeed.loading}
+            error={profileFeed.error}
+            emptyIcon="heart-outline"
+            emptyTitle="No favorites yet"
+            emptyBody="Posts you like in the Feed appear here."
+          />
         )}
         </Reanimated.View>
 
       </ScrollView>
-
-      <Modal
-        transparent
-        animationType="slide"
-        visible={activeDropdown !== null}
-        onRequestClose={closeDropdown}
-      >
-        <GestureHandlerRootView style={styles.modalGestureRoot}>
-          <View style={styles.modalContainer}>
-            <Pressable style={styles.modalBackdrop} onPress={closeDropdown} />
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{activeDropdown?.title}</Text>
-                <Pressable onPress={closeDropdown} style={styles.modalCloseButton}>
-                  <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {activeDropdown && activeDropdown.options.length > 0 ? (
-                <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
-                  {activeDropdownKey === 'vehicle' && activeDropdown.options.length > 1 ? (
-                    <Text style={styles.modalSwipeHint}>Swipe left on a vehicle to delete it.</Text>
-                  ) : null}
-                  {activeDropdown.options.map((option) => {
-                    const isSelected = activeDropdown.value === option.value;
-                    const optionKey = `${activeDropdown.title}-${option.value}-${option.label}`;
-                    const isVehicleOption = activeDropdownKey === 'vehicle';
-                    const isDeleteInProgress = deletingVehicleId === option.value;
-
-                    const optionRow = (
-                      <Pressable
-                        key={optionKey}
-                        disabled={Boolean(deletingVehicleId) || savingVehicle}
-                        onPress={() => {
-                          activeDropdown.onSelect(option.value);
-                          closeDropdown();
-                        }}
-                        style={({ pressed }) => [
-                          styles.modalOption,
-                          isSelected && styles.modalOptionSelected,
-                          pressed && !deletingVehicleId && !savingVehicle && styles.buttonPressed,
-                        ]}
-                      >
-                        <Text
-                          style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelSelected]}
-                          numberOfLines={1}
-                        >
-                          {option.label}
-                        </Text>
-                        {isSelected ? (
-                          <Ionicons name="checkmark" size={18} color={theme.colors.brandPrimary} />
-                        ) : null}
-                      </Pressable>
-                    );
-
-                    if (!isVehicleOption || activeDropdown.options.length <= 1) {
-                      return optionRow;
-                    }
-
-                    return (
-                      <Swipeable
-                        key={optionKey}
-                        overshootRight={false}
-                        renderRightActions={() => (
-                          <Pressable
-                            onPress={() => handleDeleteVehicle(option.value)}
-                            disabled={Boolean(deletingVehicleId) || savingVehicle}
-                            style={({ pressed }) => [
-                              styles.modalDeleteAction,
-                              pressed && !deletingVehicleId && !savingVehicle && styles.buttonPressed,
-                            ]}
-                          >
-                            {isDeleteInProgress ? (
-                              <ActivityIndicator color={theme.colors.textInverse} />
-                            ) : (
-                              <Text style={styles.modalDeleteActionText}>Delete</Text>
-                            )}
-                          </Pressable>
-                        )}
-                      >
-                        {optionRow}
-                      </Swipeable>
-                    );
-                  })}
-                </ScrollView>
-              ) : (
-                <Text style={styles.modalEmptyText}>{activeDropdown?.emptyText}</Text>
-              )}
-            </View>
-          </View>
-        </GestureHandlerRootView>
-      </Modal>
 
       <Modal
         transparent
@@ -1765,6 +1303,12 @@ const styles = StyleSheet.create({
   },
   manageErrorBlock: {
     marginTop: 2,
+  },
+  manageSuccessText: {
+    marginTop: 10,
+    color: theme.colors.textSuccess,
+    fontSize: 13,
+    fontWeight: '700',
   },
   manageErrorRetryButton: {
     marginTop: 8,
