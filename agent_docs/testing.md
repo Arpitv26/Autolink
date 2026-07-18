@@ -2,97 +2,75 @@ agent_docs/testing.md
 Save as: agent_docs/testing.md
 Testing Strategy — AutoLink
 Philosophy
-This is a demo-phase app. The goal is &quot;it works reliably for a recruiter demo,&quot; not production-grade test coverage. Focus on manual smoke tests + TypeScript type safety to catch most bugs.
+This is a demo-phase app. Goal: reliable recruiter demo. Primary gate is `npm run verify` + Expo Go smoke tests.
 ---
 Testing Layers
-Layer 1: TypeScript (Primary Safety Net)
-Run after every change:
-npm run type-check   # tsc --noEmit — catches type errors without building
-This catches ~70% of bugs for a TypeScript app before you even open the simulator.
-Layer 2: ESLint (Code Quality)
-npm run lint         # eslint . --ext .ts,.tsx
-Configured to catch: unused imports, missing dependencies in useEffect, potential null refs.
-Layer 3: Manual Smoke Tests (After Each Feature)
-After implementing each feature, test these flows on Expo Go (physical device or simulator):
+Layer 1: Automated quality gate
+npm run verify   # type-check + lint + Vitest
+CI: `.github/workflows/ci.yml` runs `npm ci` then `npm run verify` on push/PR.
+Focused unit tests live next to pure logic (e.g. `lib/partsCatalog.test.ts`, `lib/onboarding.test.ts`, `lib/entitlements.test.ts`).
+Layer 2: Manual Smoke Tests (After Each Feature)
 Auth flow:
-☐ Tap &quot;Sign in with Google&quot; → Google OAuth opens → redirects back → profile screen appears
-☐ Sign out → landing screen appears
-☐ Sign back in → session restored automatically
+☐ Tap "Sign in with Google" → OAuth → returns to app
+☐ Sign out → sign-in screen
+☐ Sign back in → session restored
+Setup gate (not marketing onboarding):
+☐ New user without display name/vehicle → `/onboarding`
+☐ Complete name + first vehicle → tabs unlock
 Garage flow:
-☐ Add vehicle → year picker → make dropdown (from NHTSA) → model dropdown → save
-☐ Vehicle appears on profile page
-☐ Vehicle context appears in AI chat header
+☐ Add vehicle → year → make (NHTSA) → model → save
+☐ Vehicle appears on Profile Garage
+☐ Primary vehicle context appears in AI header / Planner
 AI Chat flow:
-☐ Type &quot;What coilovers fit my [vehicle]?&quot; → response within 5 seconds
-☐ Response includes budget tiers
-☐ Typing indicator appears while waiting
-☐ Send 21 messages in one day → 21st gets rate limit error message
+☐ Type "What coilovers fit my [vehicle]?" → response within ~5 seconds
+☐ Response references the garage vehicle when possible
+☐ Loading/typing indicator while waiting
+☐ Daily limit message after 20 queries
 Mod Planner flow:
 ☐ Open Planner with a primary vehicle → active build loads/creates
-☐ Browse parts catalog → filter by category/brand/price/search
-☐ Add part → appears in category zone and total cost updates
+☐ Browse catalog → filter by category/brand/price/search
+☐ Add part → category zone + total cost update
 ☐ Reorder with chevrons; long-press then tap another zone to move
 ☐ Reload app → build items persist
-☐ Tap Share Build to Feed → caption/vehicle/build prefilled → publish with photos
+☐ Share Build to Feed → caption/vehicle/build prefilled → publish with photos
 Social Feed flow:
-☐ Feed loads with posts visible (including optional demo seed)
-☐ Create post with 2+ photos → carousel pagination dots update while swiping
-☐ Choose “Post about” a garage vehicle → Feed card shows vehicle badge
-☐ Choose “General post” → no vehicle badge
-☐ Tap heart → like count increments immediately (optimistic update)
-☐ Tap heart again → unlike
-☐ Tap comment icon → type comment/reply → submit → appears in thread
-☐ Profile Posts tab: All posts filter + vehicle chip filters correctly
-☐ Garage tab shows vehicles/manage only (no Vehicle posts placeholder strip)
+☐ Feed loads with posts
+☐ Create post with 2+ photos → carousel dots update
+☐ “Post about” vehicle → badge on card
+☐ Like/unlike optimistic
+☐ Comments/replies
+☐ Profile Posts: All + vehicle filters
+☐ Garage has no Vehicle posts placeholder strip
 Image upload:
-☐ Select image from camera roll → upload to Supabase Storage → public URL returned
-☐ Image renders in post card
+☐ Camera roll → Supabase Storage → renders in PostCard
 ---
-Pre-Commit Hooks
-Setup (one-time)
-npm install --save-dev husky lint-staged
-npx husky init
-.husky/pre-commit content:
-#!/bin/sh
-npx lint-staged
-package.json:
-&quot;lint-staged&quot;: {
-  &quot;*.{ts,tsx}&quot;: [
-    &quot;eslint --fix&quot;,
-    &quot;prettier --write&quot;
-  ]
-}
-The pre-commit hook runs automatically before every git commit. Do not bypass it (--no-verify) unless there&apos;s a documented emergency.
+Husky / lint-staged
+Not installed. Optional future. Do not assume pre-commit hooks exist.
+Use `npm run verify` locally and rely on GitHub Actions.
 ---
 Supabase Verification
-After database operations, verify in Supabase Dashboard:
-Table Editor → check rows were created/updated correctly
-Authentication → verify user accounts are created
-Storage → verify images uploaded to correct bucket
-Logs → check Edge Function logs for AI call errors
-Or use Supabase CLI
-npx supabase db inspect     # Check schema
-npx supabase logs           # View function logs
+Table Editor → rows created/updated
+Authentication → users exist
+Storage → images in correct bucket
+Edge Functions → Logs for `ai-chat` errors
+CLI: `npx supabase functions logs ai-chat` (or dashboard Logs)
 ---
-Common Issues &amp; Fixes
+Common Issues & Fixes
 | Issue | Likely Cause | Fix |
 |-------|-------------|-----|
-| Supabase project paused | Free tier inactivity | Add GitHub Action to ping project daily |
-| AI returning generic answers | Missing vehicle context | Check vehicleContext is passed to Edge Function |
-| Image upload failing | Bucket RLS policy | Check storage bucket policies in Supabase dashboard |
-| Drag-and-drop janky | Missing gesture handler setup | Ensure GestureHandlerRootView wraps app root |
-| Auth not persisting | AsyncStorage not configured | Check supabase client `storage: AsyncStorage` setting |
-| &quot;Network request failed&quot; | Dev server and phone not on same WiFi | Use `--tunnel` flag: `npx expo start --tunnel` |
+| Supabase project paused | Free tier inactivity | Wake project in dashboard |
+| AI generic answers | Missing vehicle context | Check vehicleContext passed to Edge Function |
+| AI 401 | Missing/invalid JWT | Ensure user signed in; invoke uses session |
+| Image upload failing | Bucket RLS | Check storage policies |
+| "Network request failed" | Phone/Mac different networks | `npx expo start --tunnel` |
 ---
 Before Demo Day Checklist
-☐ All 4 P0 features work end-to-end on a physical device
-☐ App loads in &lt; 2 seconds on a mid-range Android
-☐ AI responses consistently arrive in &lt; 5 seconds
-☐ Feed is seeded with 10–15 realistic-looking posts
-☐ At least 5 beta testers (friends/classmates) have used the app
-☐ No console.error messages during normal usage
-☐ App icon and splash screen are set
-☐ Onboarding flow is complete (3 screens)
-☐ Deployed to TestFlight or shareable APK link ready
-☐ Screen recording of the full demo flow ready as backup
-AutoLink • Codex CLI Config + Docs • February 2026 • Arpit Verma @ UBC
+☐ All P0 features work on a physical device
+☐ App loads quickly on mid-range Android
+☐ AI responses arrive in < 5 seconds
+☐ Feed seeded with realistic posts
+☐ No console.error during normal usage
+☐ App icon and splash screen set (Phase 5)
+☐ Marketing onboarding (3 animated screens) if time — setup gate already exists
+☐ TestFlight or shareable APK ready
+☐ Screen recording of full demo as backup

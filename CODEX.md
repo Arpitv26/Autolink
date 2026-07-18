@@ -1,5 +1,9 @@
 🔗 AutoLink
 
+> **ARCHIVAL / SUPERSEDED:** Do not treat this file as the live source of truth.
+> Use [`AGENTS.md`](AGENTS.md) for phase status and [`agent_docs/`](agent_docs/) for focused specs.
+> This mega-dump is kept for historical reference only — do not hand-sync it each release.
+
 Codex CLI Config + Reference Docs
 
 Prepared for Arpit Verma • UBC CS • February 2026

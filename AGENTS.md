@@ -14,9 +14,9 @@ App: AutoLink
 
 Goal: All-in-one AI-powered mobile app for car enthusiasts to plan mods, check compatibility, and connect with a community
 
-Stack: Expo (React Native) + TypeScript | Supabase (PostgreSQL + Auth + Storage) | OpenAI GPT-4o mini | NHTSA vPIC + CarQuery APIs
+Stack: Expo (React Native) + TypeScript | Supabase (PostgreSQL + Auth + Storage) | OpenAI GPT-4o mini | NHTSA vPIC (CarQuery planned, not wired)
 
-Current Phase: Phase 3 in progress — Mod Planner core shipped; AI is next
+Current Phase: Phase 4 AI Core in repo — deploy secrets/function + phone smoke next
 
 Target: Polished recruiter-facing demo | 12-week timeline | ≤$25/month budget
 
@@ -30,7 +30,7 @@ How I Should Think
 
 **Plan Before Coding**: Propose a brief plan and wait for approval, then implement
 
-**Verify After Changes**: Run `npx expo start` or linter checks after each change; fix before moving on
+**Verify After Changes**: Run `npm run verify` (type-check + lint + Vitest) after each change; fix before moving on. CI mirrors this in `.github/workflows/ci.yml`.
 
 **Explain Trade-offs**: When recommending something, mention why alternatives were not chosen
 
@@ -52,7 +52,7 @@ Plan → Execute → Verify
 
 **Execute:** Implement one feature at a time; keep PRs/commits small and focused
 
-**Verify:** Run `npm run lint` and test on Expo Go after each feature; never skip this step
+**Verify:** Run `npm run verify` and smoke-test on Expo Go after each feature; never skip this step
 
 **Document (with approval):** After approval, log temporary decisions in `docs/session_state.md` and long-lived rules in `AGENTS.md`/`CODEX.md`.
 
@@ -80,11 +80,11 @@ Current State (Update This!)
 
 Last Updated: July 18, 2026
 
-Working On: Physical-device smoke for Planner add/remove/reorder/share; then AI chat
+Working On: Expo Go Planner smoke + deploy AI (`db push`, OpenAI secret, `functions deploy ai-chat`) then AI phone smoke
 
-Recently Completed: Foundation, Social Feed, vehicle-linked posts, Mod Planner schema/catalog/build editor with live cost, category move/reorder, share-build-to-Feed, CI/tests, and applied Supabase migrations
+Recently Completed: Foundation, Social Feed, Mod Planner, docs sync, AI Core (ai_query_log migration, ai-chat Edge Function with JWT auth, GiftedChat UI, rate limit)
 
-Blocked By: Physical Expo Go pass for Planner gestures and share flow
+Blocked By: Physical Expo Go pass; AI requires Arpit to apply migration + set OPENAI_API_KEY + deploy function
 
 ---
 
@@ -134,23 +134,25 @@ Phase 3: Mod Planner (Weeks 6–8)
 
 ☒ Save build to Supabase (`builds` / `build_items`)
 
-☒ Share build to Social Feed (create-post with build link)
+☒ Share build to Social Feed (create-post persists `build_id`; Feed chip UI deferred)
 
 Phase 4: AI Chat Assistant (Weeks 9–10)
 
-☐ Supabase Edge Function as OpenAI proxy
+☒ Supabase Edge Function as OpenAI proxy (`supabase/functions/ai-chat`)
 
-☐ Chat UI (react-native-gifted-chat)
+☒ Chat UI (react-native-gifted-chat)
 
-☐ Vehicle context injection from garage
+☒ Vehicle context injection from garage
 
-☐ 20 query/day rate limit per user
+☒ 20 query/day rate limit per user (`ai_query_log`)
 
-☐ Typing indicator + streaming
+☒ Typing/loading indicator (streaming deferred)
+
+☐ Deploy + Expo Go smoke (db push, secrets, functions deploy)
 
 Phase 5: Polish + Deploy (Weeks 11–12)
 
-☐ Onboarding flow (3 animated screens)
+☐ Marketing onboarding (3 animated screens; setup gate already exists)
 
 ☐ Empty states + loading skeletons
 

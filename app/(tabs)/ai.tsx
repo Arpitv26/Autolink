@@ -1,129 +1,156 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import React, { useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { GiftedChat, type IMessage } from 'react-native-gifted-chat';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
+import { useAutoLinkAI } from '../../hooks/useAutoLinkAI';
 import { usePrimaryVehicleContext } from '../../hooks/usePrimaryVehicleContext';
 import { theme } from '../../lib/theme';
 
 export default function AiScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { primaryVehicle, loading, error, refresh } = usePrimaryVehicleContext(user);
+  const { primaryVehicle, loading: vehicleLoading, error: vehicleError, refresh } =
+    usePrimaryVehicleContext(user);
+
   const primaryVehicleLabel = useMemo(() => {
     if (!primaryVehicle) return null;
     return `${primaryVehicle.year} ${primaryVehicle.make} ${primaryVehicle.model}`;
   }, [primaryVehicle]);
 
+  const vehicleContext = primaryVehicleLabel ?? 'No vehicle selected';
+  const { messages, loading, error, sendMessage, clearError } =
+    useAutoLinkAI(vehicleContext);
+
+  const onSend = useCallback(
+    (newMessages: IMessage[] = []) => {
+      const text = newMessages[0]?.text;
+      if (typeof text === 'string' && text.trim().length > 0) {
+        void sendMessage(text);
+      }
+    },
+    [sendMessage]
+  );
+
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <MaterialCommunityIcons name="robot-outline" size={33} color={theme.colors.textInverse} />
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.title}>AI Assistant</Text>
+        <Text style={styles.subtitle}>
+          Ask about mods, fitment, and budget tiers for your garage car.
+        </Text>
+
+        <View style={styles.contextCard}>
+          <Text style={styles.contextTitle}>Vehicle Context</Text>
+          {vehicleLoading ? (
+            <View style={styles.contextStatusRow}>
+              <ActivityIndicator size="small" color={theme.colors.accentGreen} />
+              <Text style={styles.contextValue}>Loading your garage vehicle...</Text>
+            </View>
+          ) : vehicleError ? (
+            <>
+              <Text style={styles.contextErrorText}>{vehicleError}</Text>
+              <Pressable
+                onPress={() => void refresh()}
+                style={({ pressed }) => [
+                  styles.contextActionButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.contextActionText}>Retry</Text>
+              </Pressable>
+            </>
+          ) : primaryVehicleLabel ? (
+            <Text style={styles.contextValue}>{primaryVehicleLabel}</Text>
+          ) : (
+            <>
+              <Text style={styles.contextValue}>
+                Add a vehicle in Profile to personalize AI responses.
+              </Text>
+              <Pressable
+                onPress={() => router.push('/(tabs)/profile')}
+                style={({ pressed }) => [
+                  styles.contextActionButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.contextActionText}>Go to Profile</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        {error ? (
+          <Pressable
+            onPress={clearError}
+            style={({ pressed }) => [styles.errorBanner, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorDismiss}>Tap to dismiss</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <Text style={styles.title}>AI Assistant</Text>
-      <Text style={styles.subtitle}>
-        Get personalized mod recommendations based on your vehicle, goals, and budget.
-      </Text>
-
-      <View style={styles.contextCard}>
-        <Text style={styles.contextTitle}>Vehicle Context</Text>
-        {loading ? (
-          <View style={styles.contextStatusRow}>
-            <ActivityIndicator size="small" color={theme.colors.accentGreen} />
-            <Text style={styles.contextValue}>Loading your garage vehicle...</Text>
-          </View>
-        ) : error ? (
-          <>
-            <Text style={styles.contextErrorText}>{error}</Text>
-            <Pressable
-              onPress={() => void refresh()}
-              style={({ pressed }) => [styles.contextActionButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.contextActionText}>Retry</Text>
-            </Pressable>
-          </>
-        ) : primaryVehicleLabel ? (
-          <Text style={styles.contextValue}>{primaryVehicleLabel}</Text>
-        ) : (
-          <>
-            <Text style={styles.contextValue}>
-              Add a vehicle in Profile to personalize AI responses.
-            </Text>
-            <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
-              style={({ pressed }) => [styles.contextActionButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.contextActionText}>Go to Profile</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
-
-      <View style={styles.badge}>
-        <Ionicons name="sparkles-outline" size={14} color={theme.colors.brandSecondary} />
-        <Text style={styles.badgeText}>Coming in Phase 4</Text>
+      <View style={styles.chatWrap}>
+        <GiftedChat
+          messages={messages}
+          onSend={onSend}
+          user={{ _id: 'me', name: 'You' }}
+          isTyping={loading}
+          colorScheme="dark"
+          isSendButtonAlwaysVisible
+          messagesContainerStyle={styles.messagesContainer}
+          textInputProps={{
+            style: styles.composerInput,
+            placeholderTextColor: theme.colors.textPlaceholder,
+            placeholder: primaryVehicleLabel
+              ? `Ask about your ${primaryVehicleLabel}...`
+              : 'Ask a mod question...',
+          }}
+          keyboardAvoidingViewProps={{
+            keyboardVerticalOffset: insets.top,
+          }}
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
     backgroundColor: theme.colors.appBackground,
   },
-  iconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.brandAi,
-    shadowColor: theme.colors.brandAi,
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 5,
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderMuted,
+    backgroundColor: theme.colors.surface,
   },
   title: {
-    marginTop: 18,
-    fontSize: 39,
+    marginTop: 8,
+    fontSize: 28,
     fontWeight: '700',
     color: theme.colors.textPrimary,
-    letterSpacing: -0.8,
+    letterSpacing: -0.4,
   },
   subtitle: {
-    marginTop: 8,
-    fontSize: 16,
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
     color: theme.colors.textSecondary,
-    lineHeight: 24,
-    textAlign: 'center',
-    maxWidth: 280,
     fontWeight: '500',
   },
-  badge: {
-    marginTop: 18,
-    borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    backgroundColor: theme.colors.surfaceBrandSoft,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  badgeText: {
-    color: theme.colors.brandSecondary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
   contextCard: {
-    marginTop: 14,
-    width: '100%',
-    maxWidth: 310,
+    marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.borderMuted,
@@ -172,6 +199,44 @@ const styles = StyleSheet.create({
     color: theme.colors.accentGreen,
     fontSize: 13,
     fontWeight: '700',
+  },
+  errorBanner: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDangerSoft,
+    backgroundColor: theme.colors.surfaceDangerSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorText: {
+    color: theme.colors.textDanger,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+  errorDismiss: {
+    marginTop: 4,
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  chatWrap: {
+    flex: 1,
+  },
+  messagesContainer: {
+    backgroundColor: theme.colors.appBackground,
+  },
+  composerInput: {
+    color: theme.colors.textPrimary,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    marginRight: 8,
+    fontSize: 16,
+    lineHeight: 22,
   },
   buttonPressed: {
     transform: [{ scale: 0.985 }],

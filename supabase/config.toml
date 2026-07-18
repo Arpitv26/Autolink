@@ -1,0 +1,5 @@
+# Function config for Supabase CLI deploy.
+# Schema source of truth remains supabase/migrations/.
+
+[functions.ai-chat]
+verify_jwt = true

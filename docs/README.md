@@ -21,7 +21,7 @@
 Foundation, Social Feed, and Mod Planner core are implemented. The app has Google OAuth, a
 resumable setup gate, profile/garage, paginated posts with optional vehicle attachment, and a
 Planner build editor backed by a mocked parts catalog with live cost, category zones, and
-share-to-Feed. AI remains the next placeholder milestone.
+share-to-Feed. AI Core is in the repo (GiftedChat + Edge Function); deploy secrets/function before phone smoke.
 
 Backend behavior is migration-driven. Apply every file in `supabase/migrations/` before testing.
 
@@ -98,7 +98,7 @@ A primary-vehicle build planner with a mocked parts catalog.
 - Add/remove parts on a category-zone board with reorder and long-press move
 - Real-time estimated cost synced to Supabase
 - One active build per garage vehicle for MVP
-- Share the build to Feed with photos and a linked `build_id`
+- Share the build to Feed with photos; `build_id` is persisted (Feed build-chip UI deferred)
 
 ### Social Community Feed
 A car-community feed for build updates and discussion.
@@ -129,7 +129,7 @@ Personalise the entire app experience around your specific car.
 | **Authentication** | Supabase Auth (Google OAuth) | Passwordless social login; Apple Sign-In deferred |
 | **Image Storage** | Supabase Storage | 1GB free tier; direct upload from mobile; built-in CDN |
 | **AI API** | OpenAI GPT-4o mini | Best cost/quality ratio ($0.15/M input tokens); excellent automotive knowledge |
-| **Vehicle Data** | NHTSA vPIC + CarQuery API | Both 100% free, no API key needed; covers make/model/year/specs |
+| **Vehicle Data** | NHTSA vPIC (CarQuery planned) | NHTSA wired for make/model/year; CarQuery not integrated yet |
 | **Push Notifications** | Expo Push Notifications + EAS | Free; works natively with Expo |
 | **AI Coding Tools** | Cursor IDE + GitHub Copilot | Cursor's Composer mode scaffolds entire screens in minutes |
 
@@ -145,23 +145,23 @@ Personalise the entire app experience around your specific car.
                       │   ┌──────────────┐   ┌──────────────┐   ┌──────────────────┐  │
                       │   │   AI Chat    │   │    Build     │   │   Social Feed    │  │
                       │   │  (Gifted     │   │   Planner    │   │  (FlatList +     │  │
-                      │   │   Chat UI)   │   │ (Reanimated  │   │   expo-image)    │  │
-                      │   └──────┬───────┘   │  drag-drop)  │   └────────┬─────────┘  │
-                      │          │           └──────┬───────┘            │            │
+                      │   │   Chat UI)   │   │ (category    │   │   expo-image)    │  │
+                      │   │              │   │  zones)      │   │                  │  │
+                      │   └──────┬───────┘   └──────┬───────┘   └────────┬─────────┘  │
+                      │          │                  │                    │            │
                       └──────────┼──────────────────┼────────────────────┼────────────┘
                                  │                  │                    │
                           ┌──────▼─────┐    ┌───────▼────────────────────▼─────────┐
                           │  OpenAI    │    │               Supabase               │
                           │  GPT-4o    │    │  ┌──────────┐   ┌────────────────┐   │
-                          │  mini API  │    │  │PostgreSQL│   │    Storage     │   │
-                          │            │    │  │ Database │   │  (Car images)  │   │
+                          │  mini via  │    │  │PostgreSQL│   │    Storage     │   │
+                          │ Edge Func  │    │  │ Database │   │  (Car images)  │   │
                           └────────────┘    │  └──────────┘   └────────────────┘   │
-                                            │  ┌──────────┐   ┌────────────────┐   │
-                          ┌─────────────┐   │  │   Auth   │   │   Realtime     │   │
-                          │  NHTSA API  │   │  │  (JWT)   │   │  (WebSocket)   │   │
-                          │  CarQuery   │   │  └──────────┘   └────────────────┘   │
-                          │   (free)    │   └──────────────────────────────────────┘
-                          └─────────────┘
+                          ┌─────────────┐   │  ┌──────────┐   ┌────────────────┐   │
+                          │  NHTSA vPIC │   │  │   Auth   │   │ Edge Functions │   │
+                          │   (wired)   │   │  │  (JWT)   │   │  (AI proxy)    │   │
+                          └─────────────┘   │  └──────────┘   └────────────────┘   │
+                                            └──────────────────────────────────────┘
 ```
 
 ---
@@ -243,33 +243,44 @@ AutoLink will be available soon on:
 autolink/
 ├── app/                        # Expo Router screens (file-based routing)
 │   ├── (tabs)/
-│   │   ├── ai.tsx              # AI Chat Assistant screen
-│   │   ├── planner.tsx         # Modification Planner screen
-│   │   ├── feed.tsx            # Social Feed screen
-│   │   └── profile.tsx         # User Profile & Garage screen
-│   ├── onboarding.tsx          # Lightweight profile + first-vehicle setup gate
-│   ├── create-post.tsx         # 1–5 image post creation + optional vehicle
+│   │   ├── feed.tsx            # Social Feed (default landing after auth)
+│   │   ├── planner.tsx         # Mod Planner build editor
+│   │   ├── ai.tsx              # AI Chat Assistant
+│   │   └── profile.tsx         # Profile, Garage, Posts, Favorites
+│   ├── onboarding.tsx          # Setup gate: display name + first vehicle
+│   ├── create-post.tsx         # 1–5 images + optional vehicle/build
 │   ├── post/[id].tsx           # Comments and replies
 │   └── _layout.tsx             # Root layout + auth/onboarding gate
 ├── components/
-│   ├── feed/
-│   │   └── PostCard.tsx        # Feed card, carousel dots, vehicle badge
-│   └── profile/                # Shared garage, vehicle form, and post grid UI
+│   ├── feed/PostCard.tsx       # Carousel dots + vehicle badge
+│   ├── planner/                # CatalogBrowser, CategoryZone
+│   └── profile/                # Garage list, vehicle form, post grid
+├── data/
+│   └── parts_catalog.json      # Mocked ~120-part catalog
 ├── lib/
-│   ├── supabase.ts             # Supabase client configuration
+│   ├── supabase.ts             # Supabase client
 │   ├── nhtsa.ts                # NHTSA vehicle API helpers
+│   ├── partsCatalog.ts         # Catalog filters
 │   ├── onboarding.ts           # Pure completion rules
-│   └── entitlements.ts         # Pure plan-limit rules
+│   ├── entitlements.ts         # Pure plan-limit rules
+│   └── theme.ts                # Dark espresso/gold theme
 ├── hooks/
-│   ├── useGarageSetup.ts       # Garage data and mutations
-│   ├── useOnboarding.tsx       # Setup status provider
-│   ├── useCreatePost.ts        # Image upload, vehicle selection, publish
-│   ├── useFeed.ts              # Paginated feed + social mutations
-│   └── useProfileFeedSections.ts # Profile posts/favorites + vehicle_id
-├── assets/                     # Images, icons, fonts
+│   ├── useGarageSetup.ts
+│   ├── useOnboarding.tsx
+│   ├── useCreatePost.ts
+│   ├── useFeed.ts
+│   ├── useBuildPlanner.ts
+│   ├── useProfileFeedSections.ts
+│   └── useAutoLinkAI.ts        # AI chat → Edge Function
+├── types/
+│   ├── feed.ts
+│   └── planner.ts
+├── .github/workflows/ci.yml    # npm ci + npm run verify
+├── assets/
 └── supabase/
     ├── migrations/             # Backend source of truth
-    └── seed.sql                # Optional demo posts
+    ├── functions/ai-chat/      # OpenAI proxy (deploy separately)
+    └── seed.sql
 ```
 
 ---
@@ -291,7 +302,7 @@ See `supabase/migrations/` for exact SQL and policy definitions.
 
 ## AI Assistant
 
-> Planned milestone. The current AI tab is a placeholder.
+> Phase 4 milestone. Chat UI + Edge Function live in repo; deploy secrets/function before phone smoke.
 
 ### How It Works
 
@@ -350,7 +361,7 @@ AutoLink uses free government and community APIs for vehicle data — zero cost 
 | API | Provider | Data | Pricing | Coverage |
 |---|---|---|---|---|
 | **NHTSA vPIC**✓ | US Government | VIN decode, makes/models/years/trims, recalls | **Free, no key** | US vehicles (1981–present) |
-| **CarQuery API** ✓ | CarQuery.com | Engine specs, dimensions, 90K+ variants | **Free, no key** | Global (1941–present) |
+| **CarQuery API** (planned) | CarQuery.com | Engine specs, dimensions, 90K+ variants | **Free, no key** | Not wired in app yet |
 | **NHTSA Recalls** | US Government | Safety recalls, defect investigations | **Free, no key** | US vehicles |
 | Edmunds API ⚠︎ | Edmunds.com | Full specs, pricing, dealer data | Free (registration required, becoming restrictive) | US vehicles |
 
@@ -371,7 +382,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 //   DisplacementL: '1.5', DriveType: 'FWD' }
 ```
 
-> **Demo Strategy:** NHTSA vPIC for vehicle validation + CarQuery for specs + a static JSON file of ~150 popular aftermarket parts. This delivers 100% of demo functionality at $0 cost.
+> **Demo Strategy:** NHTSA vPIC for vehicle validation + a static JSON file of ~120 popular aftermarket parts. CarQuery remains planned.
 
 ---
 
@@ -382,7 +393,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 | **Foundation** | 1–2 | Auth, setup gate, profile, server-enforced garage, quality baseline | ✅ Implemented |
 | **Social Feed** | 3–5 | Pagination, image posts, likes, comments, follows, profile sections | ✅ Implemented |
 | **Planner** | 6–8 | Catalog, build editor, cost tracker, share to Feed | ✅ Core shipped |
-| **AI Core** | 9–10 | Edge Function proxy, chat UI, vehicle context, rate limiting | ⏳ Next |
+| **AI Core** | 9–10 | Edge Function proxy, chat UI, vehicle context, rate limiting | ✅ In repo (deploy next) |
 | **Polish** | 11–12 | Device hardening, EAS builds, store previews, demo video | ⏳ Upcoming |
 
 ### What's Real vs. Mocked in the Demo
@@ -392,7 +403,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 | Vehicle lookup (make/model/year) | **REAL** — NHTSA vPIC API | Free, instant, adds credibility |
 | AI chat responses | **REAL** — OpenAI GPT-4o mini | Core feature — must be live AI |
 | User auth + profiles | **REAL** — Supabase Auth | Easy to implement; shows security awareness |
-| Parts catalogue | **MOCKED** — static JSON (~150 parts) | Real APIs cost $1,000+/year |
+| Parts catalogue | **MOCKED** — static JSON (~120 parts) | Real APIs cost $1,000+/year |
 | Part compatibility | **HYBRID** — AI reasons about it | Sufficient for demo with appropriate caveats |
 | Social feed posts | **REAL** — Supabase DB | Optional idempotent demo seed included |
 | Image uploads | **REAL** — Supabase Storage | Required for authentic social feel |
@@ -401,7 +412,7 @@ const vinUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/
 
 ## Budget & Cost
 
-AutoLink is designed to run well within a $50/month budget during the demo phase.
+AutoLink targets a **≤$25/month** hard cap for the demo phase (research docs sometimes cite $50 as an upper research bound).
 
 | Service | What It Covers | Free Tier | Demo Cost |
 |---|---|---|---|
@@ -412,7 +423,7 @@ AutoLink is designed to run well within a $50/month budget during the demo phase
 | **CarQuery API** | Vehicle specs + engine data | Completely free, no key | **$0/month** |
 | Domain *(optional)* | autolink.app or similar | N/A | ~$10–15/year |
 
-> ** Total Estimated Demo Cost: $5–8/month** — well within budget. The remaining ~$42 is buffer for usage spikes or optional tools.
+> **Total estimated demo cost: $5–8/month** — well within the $25 cap.
 
 ### Cost Optimisation Tips
 
