@@ -80,9 +80,9 @@ Current State (Update This!)
 
 Last Updated: July 18, 2026
 
-Working On: Applying Foundation/Feed migrations and completing the physical-device smoke pass
+Working On: Expo Go smoke testing after vehicle-linked posts and Profile garage cleanup
 
-Recently Completed: hardened Foundation, reusable garage/profile UI, setup gate, server-enforced entitlements/vehicle rules, paginated Social Feed, post images, likes, threaded comments, follows, profile Posts/Favorites, targeted tests, and CI
+Recently Completed: hardened Foundation, setup gate, Social Feed, vehicle-linked posts (`posts.vehicle_id`), carousel pagination dots, Profile Posts vehicle filters, removed unused Garage "Vehicle posts" placeholder, CI/tests, and applied Supabase migrations
 
 Blocked By: Final Expo Go interaction pass requires a physical device
 
@@ -117,6 +117,10 @@ Phase 2: Social Feed (Weeks 3–5)
 ☒ Follow/unfollow users
 
 ☒ Add idempotent optional demo seed (`supabase/seed.sql`)
+
+☒ Optional vehicle attachment on posts + Profile Posts vehicle filters
+
+☒ Multi-photo carousel pagination dots
 
 Phase 3: Mod Planner (Weeks 6–8)
 

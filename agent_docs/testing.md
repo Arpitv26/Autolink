@@ -33,11 +33,15 @@ Mod Planner flow:
 ☐ Build auto-saves to Supabase (verify in Supabase dashboard)
 ☐ Tap &quot;Share to Feed&quot; → post appears in feed
 Social Feed flow:
-☐ Feed loads with posts visible
+☐ Feed loads with posts visible (including optional demo seed)
+☐ Create post with 2+ photos → carousel pagination dots update while swiping
+☐ Choose “Post about” a garage vehicle → Feed card shows vehicle badge
+☐ Choose “General post” → no vehicle badge
 ☐ Tap heart → like count increments immediately (optimistic update)
 ☐ Tap heart again → unlike
-☐ Tap comment icon → type comment → submit → appears in thread
-☐ Upload photo → post appears in feed with image
+☐ Tap comment icon → type comment/reply → submit → appears in thread
+☐ Profile Posts tab: All posts filter + vehicle chip filters correctly
+☐ Garage tab shows vehicles/manage only (no Vehicle posts placeholder strip)
 Image upload:
 ☐ Select image from camera roll → upload to Supabase Storage → public URL returned
 ☐ Image renders in post card

@@ -58,7 +58,7 @@ What is Mocked vs Real (Demo Strategy)
 | User auth + profiles | REAL — Supabase Auth | Easy, shows security awareness |
 | Parts catalog | MOCKED — static JSON (~150 parts) | Real APIs cost $1K+/year |
 | Part compatibility | HYBRID — AI reasons about it | AI can caveat uncertainty |
-| Social feed posts | REAL — Supabase DB | Core feature; seed 10–15 posts |
+| Social feed posts | REAL — Supabase DB | Optional vehicle link + demo seed |
 | Image uploads | REAL — Supabase Storage | Required for social authenticity |
 | Price comparisons | MOCKED — hardcoded ranges | Real affiliate data post-launch |
 ---

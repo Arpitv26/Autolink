@@ -20,9 +20,11 @@
 
 Foundation and the chronological Social Feed vertical slice are implemented. The app now has
 Google OAuth, a resumable profile/first-vehicle setup gate, profile/avatar editing, server-enforced
-garage entitlements, paginated posts, 1–5 image uploads, optimistic likes, threaded comments,
-follow/unfollow, and profile Posts/Favorites. Planner and AI are the remaining placeholder tabs;
-Planner is the next milestone.
+garage entitlements, paginated posts, 1–5 image uploads with carousel dots, optional vehicle
+attachment on posts, optimistic likes, threaded comments, follow/unfollow, and profile
+Posts/Favorites with vehicle filters. Garage focuses on vehicle management only; vehicle-linked
+posts are browsed from the Profile Posts tab. Planner and AI remain placeholder tabs; Planner is
+the next milestone.
 
 Backend behavior is migration-driven. Apply every file in `supabase/migrations/` before testing.
 
@@ -102,12 +104,13 @@ A drag-and-drop canvas to visually plan and organise your entire build.
 - Share your build directly to the Social Feed
 
 ### Social Community Feed
-An Instagram-style feed built specifically for car enthusiasts.
+A car-community feed for build updates and discussion.
 
-- Infinite scroll feed of public builds
-- Upload 1–5 photos per post from your camera roll
-- Like, comment, and follow other enthusiasts
-- Posts can link directly to a saved build in the Mod Planner
+- Infinite scroll feed of public posts
+- Upload 1–5 photos per post from your camera roll, with carousel pagination dots
+- Optionally attach one garage vehicle (“Post about”) or keep the post general
+- Like, comment/reply, and follow other enthusiasts
+- Profile Posts tab supports All + per-vehicle filters
 
 ### Garage Profile
 Personalise the entire app experience around your specific car.
@@ -115,7 +118,7 @@ Personalise the entire app experience around your specific car.
 - Sign in with Google (Apple Sign-In is deferred)
 - Save 1 vehicle on Free or up to 5 on Pro — validated against the **NHTSA vPIC API**
 - Vehicle context is automatically injected into every AI query
-- Profile page showcases your builds and posts
+- Garage manages vehicles; Posts/Favorites live in the Profile section switcher
 
 ---
 
@@ -248,13 +251,13 @@ autolink/
 │   │   ├── feed.tsx            # Social Feed screen
 │   │   └── profile.tsx         # User Profile & Garage screen
 │   ├── onboarding.tsx          # Lightweight profile + first-vehicle setup gate
-│   ├── create-post.tsx         # 1–5 image post creation
+│   ├── create-post.tsx         # 1–5 image post creation + optional vehicle
 │   ├── post/[id].tsx           # Comments and replies
-│   └── _layout.tsx             # Root layout + auth gate
+│   └── _layout.tsx             # Root layout + auth/onboarding gate
 ├── components/
 │   ├── feed/
-│   │   └── PostCard.tsx        # Social post card
-│   └── profile/                # Shared garage, vehicle, and profile-post UI
+│   │   └── PostCard.tsx        # Feed card, carousel dots, vehicle badge
+│   └── profile/                # Shared garage, vehicle form, and post grid UI
 ├── lib/
 │   ├── supabase.ts             # Supabase client configuration
 │   ├── nhtsa.ts                # NHTSA vehicle API helpers
@@ -263,8 +266,9 @@ autolink/
 ├── hooks/
 │   ├── useGarageSetup.ts       # Garage data and mutations
 │   ├── useOnboarding.tsx       # Setup status provider
-│   ├── useCreatePost.ts        # Image upload and post creation
-│   └── useFeed.ts              # Paginated feed + social mutations
+│   ├── useCreatePost.ts        # Image upload, vehicle selection, publish
+│   ├── useFeed.ts              # Paginated feed + social mutations
+│   └── useProfileFeedSections.ts # Profile posts/favorites + vehicle_id
 ├── assets/                     # Images, icons, fonts
 └── supabase/
     ├── migrations/             # Backend source of truth
@@ -279,7 +283,8 @@ Supabase migrations are the only schema source of truth. The implemented model c
 
 - `profiles` and `vehicles`, with server-managed Pro entitlement and atomic primary-vehicle RPCs
 - `posts`, `likes`, `comments`, and `follows`, with indexed chronological reads
-- trigger-maintained post counters
+- optional `posts.vehicle_id` referencing the author’s garage vehicle (`ON DELETE SET NULL`)
+- trigger-maintained post counters and vehicle-ownership validation on posts
 - public `avatars` and `post-images` buckets with owner-scoped write policies
 - Row Level Security on every app table
 

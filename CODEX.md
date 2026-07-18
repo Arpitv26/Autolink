@@ -362,7 +362,7 @@ AutoLink/
 
 │   │   ├── feed.tsx        # Social Feed screen
 
-│   │   └── profile.tsx     # Profile/Garage screen
+│   │   └── profile.tsx     # Profile/Garage + Posts/Favorites filters
 
 │   ├── _layout.tsx         # Root layout + auth guard
 
@@ -1956,13 +1956,21 @@ Social Feed flow:
 
 ☐ Feed loads with posts visible
 
+☐ Create multi-photo post → carousel dots update while swiping
+
+☐ Attach a garage vehicle or choose General post
+
+☐ Vehicle-linked Feed cards show a vehicle badge
+
 ☐ Tap heart → like count increments immediately (optimistic update)
 
 ☐ Tap heart again → unlike
 
-☐ Tap comment icon → type comment → submit → appears in thread
+☐ Tap comment icon → type comment/reply → submit → appears in thread
 
-☐ Upload photo → post appears in feed with image
+☐ Profile Posts tab filters by All + each vehicle
+
+☐ Garage tab has no Vehicle posts placeholder strip
 
 Image upload:
 

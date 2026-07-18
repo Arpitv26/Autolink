@@ -88,30 +88,31 @@ Folder Structure
 AutoLink/
 ├── app/                    # Expo Router screens
 │   ├── (tabs)/
-│   │   ├── ai.tsx          # AI Chat screen
-│   │   ├── planner.tsx     # Mod Planner screen
 │   │   ├── feed.tsx        # Social Feed screen
-│   │   └── profile.tsx     # Profile/Garage screen
-│   ├── _layout.tsx         # Root layout + auth guard
-│   └── onboarding.tsx      # Onboarding flow
-├── components/             # Reusable UI components
-│   ├── PostCard.tsx
-│   ├── ModCard.tsx
-│   ├── VehiclePicker.tsx
-│   └── AIMessage.tsx
+│   │   ├── planner.tsx     # Mod Planner placeholder
+│   │   ├── ai.tsx          # AI Chat placeholder
+│   │   └── profile.tsx     # Profile/Garage + Posts/Favorites
+│   ├── create-post.tsx     # Post creation + optional vehicle
+│   ├── post/[id].tsx       # Comments/replies
+│   ├── _layout.tsx         # Root layout + auth/onboarding gate
+│   └── onboarding.tsx      # Lightweight profile + first-vehicle setup
+├── components/
+│   ├── feed/PostCard.tsx   # Carousel dots + vehicle badge
+│   └── profile/            # Garage list, vehicle form, post grid
 ├── lib/
 │   ├── supabase.ts         # Supabase client
-│   ├── openai.ts           # AI hook (calls Edge Function, not OpenAI directly)
-│   └── nhtsa.ts            # NHTSA API helpers
-├── data/
-│   └── parts_catalog.json  # Mocked ~150 aftermarket parts
+│   ├── nhtsa.ts            # NHTSA API helpers
+│   ├── onboarding.ts       # Pure completion rules
+│   └── entitlements.ts     # Pure plan-limit rules
 ├── hooks/
 │   ├── useAuth.ts
-│   ├── useBuilds.ts
-│   └── usePosts.ts
+│   ├── useGarageSetup.ts
+│   ├── useFeed.ts
+│   ├── useCreatePost.ts
+│   └── useProfileFeedSections.ts
 ├── supabase/
-│   └── functions/
-│       └── ai-chat/        # Edge Function for OpenAI proxy
+│   ├── migrations/         # Backend source of truth
+│   └── seed.sql            # Optional demo posts
 └── agent_docs/             # AI agent documentation (this folder)
 ---
 Free Tier Limits (Feb 2026)

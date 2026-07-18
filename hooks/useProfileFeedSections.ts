@@ -6,6 +6,7 @@ export type ProfilePostSummary = {
   id: string;
   caption: string;
   imageUrl: string;
+  vehicleId: string | null;
   likesCount: number;
   commentsCount: number;
   createdAt: string;
@@ -13,6 +14,7 @@ export type ProfilePostSummary = {
 
 type PostSummaryRow = {
   id: string;
+  vehicle_id: string | null;
   caption: string | null;
   image_urls: string[];
   likes_count: number;
@@ -37,6 +39,7 @@ function mapPost(row: PostSummaryRow): ProfilePostSummary {
     id: row.id,
     caption: row.caption ?? '',
     imageUrl: row.image_urls?.[0] ?? '',
+    vehicleId: row.vehicle_id,
     likesCount: row.likes_count,
     commentsCount: row.comments_count,
     createdAt: row.created_at,
@@ -65,7 +68,9 @@ export function useProfileFeedSections(
     const [postsResult, likesResult] = await Promise.all([
       supabase
         .from('posts')
-        .select('id, caption, image_urls, likes_count, comments_count, created_at')
+        .select(
+          'id, vehicle_id, caption, image_urls, likes_count, comments_count, created_at'
+        )
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(30)
@@ -91,7 +96,9 @@ export function useProfileFeedSections(
     if (favoriteIds.length > 0) {
       const { data, error: favoritesError } = await supabase
         .from('posts')
-        .select('id, caption, image_urls, likes_count, comments_count, created_at')
+        .select(
+          'id, vehicle_id, caption, image_urls, likes_count, comments_count, created_at'
+        )
         .in('id', favoriteIds)
         .returns<PostSummaryRow[]>();
 

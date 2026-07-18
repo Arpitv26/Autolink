@@ -1,17 +1,35 @@
 import type { User } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 const POST_IMAGE_BUCKET = 'post-images';
 const MAX_POST_IMAGES = 5;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+export type PostVehicleOption = {
+  id: string;
+  label: string;
+  isPrimary: boolean;
+};
+
+type VehicleRow = {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  is_primary: boolean;
+};
+
 type UseCreatePostResult = {
   images: ImagePicker.ImagePickerAsset[];
+  vehicles: PostVehicleOption[];
+  selectedVehicleId: string | null;
+  loadingVehicles: boolean;
   picking: boolean;
   publishing: boolean;
   error: string | null;
+  setSelectedVehicleId: (vehicleId: string | null) => void;
   pickImages: () => Promise<void>;
   removeImage: (uri: string) => void;
   publish: (caption: string) => Promise<boolean>;
@@ -46,9 +64,57 @@ function validateAssets(assets: ImagePicker.ImagePickerAsset[]): string | null {
 
 export function useCreatePost(user: User | null): UseCreatePostResult {
   const [images, setImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [vehicles, setVehicles] = useState<PostVehicleOption[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [loadingVehicles, setLoadingVehicles] = useState<boolean>(true);
   const [picking, setPicking] = useState<boolean>(false);
   const [publishing, setPublishing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setVehicles([]);
+      setSelectedVehicleId(null);
+      setLoadingVehicles(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingVehicles(true);
+
+    void supabase
+      .from('vehicles')
+      .select('id, make, model, year, is_primary')
+      .eq('user_id', user.id)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: false })
+      .returns<VehicleRow[]>()
+      .then(({ data, error: vehiclesError }) => {
+        if (!active) return;
+
+        if (vehiclesError) {
+          setVehicles([]);
+          setSelectedVehicleId(null);
+          setError('Could not load your garage. You can still create a general post.');
+        } else {
+          const nextVehicles = (data ?? []).map((vehicle) => ({
+            id: vehicle.id,
+            label: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            isPrimary: vehicle.is_primary,
+          }));
+          setVehicles(nextVehicles);
+          setSelectedVehicleId(
+            nextVehicles.find((vehicle) => vehicle.isPrimary)?.id ?? null
+          );
+        }
+
+        setLoadingVehicles(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const pickImages = useCallback(async (): Promise<void> => {
     setPicking(true);
@@ -133,6 +199,7 @@ export function useCreatePost(user: User | null): UseCreatePostResult {
         const trimmedCaption = caption.trim();
         const { error: insertError } = await supabase.from('posts').insert({
           user_id: user.id,
+          vehicle_id: selectedVehicleId,
           caption: trimmedCaption || null,
           image_urls: imageUrls,
         });
@@ -150,14 +217,18 @@ export function useCreatePost(user: User | null): UseCreatePostResult {
         setPublishing(false);
       }
     },
-    [images, user]
+    [images, selectedVehicleId, user]
   );
 
   return {
     images,
+    vehicles,
+    selectedVehicleId,
+    loadingVehicles,
     picking,
     publishing,
     error,
+    setSelectedVehicleId,
     pickImages,
     removeImage,
     publish,

@@ -18,8 +18,19 @@ import { theme } from '../lib/theme';
 
 export default function CreatePostScreen() {
   const { user } = useAuth();
-  const { images, picking, publishing, error, pickImages, removeImage, publish } =
-    useCreatePost(user);
+  const {
+    images,
+    vehicles,
+    selectedVehicleId,
+    loadingVehicles,
+    picking,
+    publishing,
+    error,
+    setSelectedVehicleId,
+    pickImages,
+    removeImage,
+    publish,
+  } = useCreatePost(user);
   const [caption, setCaption] = useState<string>('');
 
   const handlePublish = useCallback(async (): Promise<void> => {
@@ -52,6 +63,79 @@ export default function CreatePostScreen() {
           <Text style={styles.subtitle}>
             Choose up to five photos and tell the community what changed.
           </Text>
+
+          <Text style={styles.label}>Post about</Text>
+          {loadingVehicles ? (
+            <View style={styles.vehicleLoading}>
+              <ActivityIndicator size="small" color={theme.colors.accentGreenMuted} />
+              <Text style={styles.vehicleLoadingText}>Loading your garage…</Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.vehicleOptions}
+            >
+              <Pressable
+                onPress={() => setSelectedVehicleId(null)}
+                style={({ pressed }) => [
+                  styles.vehicleChip,
+                  selectedVehicleId === null && styles.vehicleChipSelected,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons
+                  name="globe-outline"
+                  size={15}
+                  color={
+                    selectedVehicleId === null
+                      ? theme.colors.textIconDark
+                      : theme.colors.textSecondary
+                  }
+                />
+                <Text
+                  style={[
+                    styles.vehicleChipText,
+                    selectedVehicleId === null && styles.vehicleChipTextSelected,
+                  ]}
+                >
+                  General post
+                </Text>
+              </Pressable>
+
+              {vehicles.map((vehicle) => {
+                const selected = selectedVehicleId === vehicle.id;
+                return (
+                  <Pressable
+                    key={vehicle.id}
+                    onPress={() => setSelectedVehicleId(vehicle.id)}
+                    style={({ pressed }) => [
+                      styles.vehicleChip,
+                      selected && styles.vehicleChipSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Ionicons
+                      name="car-sport-outline"
+                      size={15}
+                      color={
+                        selected ? theme.colors.textIconDark : theme.colors.textSecondary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.vehicleChipText,
+                        selected && styles.vehicleChipTextSelected,
+                      ]}
+                    >
+                      {vehicle.label}
+                      {vehicle.isPrimary ? ' · Primary' : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <Text style={styles.label}>Photos</Text>
           {images.length > 0 ? (
@@ -195,6 +279,45 @@ const styles = StyleSheet.create({
     color: theme.colors.accentGreenMuted,
     fontSize: 13,
     fontWeight: '800',
+  },
+  vehicleLoading: {
+    minHeight: 42,
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  vehicleLoadingText: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+  },
+  vehicleOptions: {
+    gap: 8,
+    paddingBottom: 18,
+  },
+  vehicleChip: {
+    minHeight: 40,
+    maxWidth: 250,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingHorizontal: 12,
+  },
+  vehicleChipSelected: {
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.brandPrimary,
+  },
+  vehicleChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  vehicleChipTextSelected: {
+    color: theme.colors.textIconDark,
   },
   previewRow: {
     gap: 10,

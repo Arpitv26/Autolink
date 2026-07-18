@@ -2,13 +2,14 @@ import type { User } from '@supabase/supabase-js';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { FeedAuthor, FeedPost } from '../types/feed';
+import type { FeedAuthor, FeedPost, FeedVehicle } from '../types/feed';
 
 const PAGE_SIZE = 10;
 
 type PostRow = {
   id: string;
   user_id: string;
+  vehicle_id: string | null;
   caption: string | null;
   image_urls: string[];
   likes_count: number;
@@ -29,6 +30,13 @@ type LikeRow = {
 
 type FollowRow = {
   following_id: string;
+};
+
+type VehicleRow = {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
 };
 
 type UseFeedResult = {
@@ -58,6 +66,13 @@ async function hydratePosts(rows: PostRow[], user: User | null): Promise<FeedPos
 
   const authorIds = [...new Set(rows.map((row) => row.user_id))];
   const postIds = rows.map((row) => row.id);
+  const vehicleIds = [
+    ...new Set(
+      rows
+        .map((row) => row.vehicle_id)
+        .filter((vehicleId): vehicleId is string => Boolean(vehicleId))
+    ),
+  ];
 
   const profilePromise = supabase
     .from('profiles')
@@ -83,13 +98,28 @@ async function hydratePosts(rows: PostRow[], user: User | null): Promise<FeedPos
         .returns<FollowRow[]>()
     : Promise.resolve({ data: [] as FollowRow[], error: null });
 
-  const [profilesResult, likesResult, followsResult] = await Promise.all([
+  const vehiclesPromise =
+    vehicleIds.length > 0
+      ? supabase
+          .from('vehicles')
+          .select('id, make, model, year')
+          .in('id', vehicleIds)
+          .returns<VehicleRow[]>()
+      : Promise.resolve({ data: [] as VehicleRow[], error: null });
+
+  const [profilesResult, likesResult, followsResult, vehiclesResult] = await Promise.all([
     profilePromise,
     likesPromise,
     followsPromise,
+    vehiclesPromise,
   ]);
 
-  if (profilesResult.error || likesResult.error || followsResult.error) {
+  if (
+    profilesResult.error ||
+    likesResult.error ||
+    followsResult.error ||
+    vehiclesResult.error
+  ) {
     throw new Error('Could not load feed details.');
   }
 
@@ -108,6 +138,15 @@ async function hydratePosts(rows: PostRow[], user: User | null): Promise<FeedPos
   const followedAuthorIds = new Set(
     (followsResult.data ?? []).map((follow) => follow.following_id)
   );
+  const vehicles = new Map<string, FeedVehicle>(
+    (vehiclesResult.data ?? []).map((vehicle) => [
+      vehicle.id,
+      {
+        id: vehicle.id,
+        label: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+      },
+    ])
+  );
 
   return rows.map((row) => ({
     id: row.id,
@@ -118,6 +157,7 @@ async function hydratePosts(rows: PostRow[], user: User | null): Promise<FeedPos
     commentsCount: row.comments_count,
     createdAt: row.created_at,
     author: authors.get(row.user_id) ?? fallbackAuthor(row.user_id),
+    vehicle: row.vehicle_id ? (vehicles.get(row.vehicle_id) ?? null) : null,
     likedByCurrentUser: likedPostIds.has(row.id),
     followedByCurrentUser: followedAuthorIds.has(row.user_id),
   }));
@@ -145,7 +185,9 @@ export function useFeed(user: User | null): UseFeedResult {
       const to = from + PAGE_SIZE - 1;
       const { data, error: postsError } = await supabase
         .from('posts')
-        .select('id, user_id, caption, image_urls, likes_count, comments_count, created_at')
+        .select(
+          'id, user_id, vehicle_id, caption, image_urls, likes_count, comments_count, created_at'
+        )
         .order('created_at', { ascending: false })
         .range(from, to)
         .returns<PostRow[]>();

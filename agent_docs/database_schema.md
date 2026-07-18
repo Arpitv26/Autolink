@@ -3,10 +3,15 @@ Save as: agent_docs/database_schema.md
 Database Schema — AutoLink
 Overview
 PostgreSQL database hosted on Supabase. Row Level Security (RLS) must be enabled on all tables.
+
+Canonical source of truth: `supabase/migrations/` (not this file).
+Implemented Feed posts may optionally reference `vehicles` via `posts.vehicle_id`
+(`ON DELETE SET NULL`, ownership validated by trigger). Garage does not embed a
+posts placeholder strip; vehicle-linked posts are filtered in Profile Posts.
 ---
 Full Schema SQL
 -- ============================================================
--- Run this in Supabase SQL Editor to set up the full schema
+-- Historical reference. Prefer applying files in supabase/migrations/.
 -- ============================================================
 -- PROFILES (extends Supabase Auth users)
 create table profiles (
@@ -14,6 +19,9 @@ create table profiles (
   username text unique not null,
   display_name text,
   avatar_url text,
+  bio text,
+  pronouns text,
+  is_pro boolean not null default false,
   created_at timestamptz default now()
 );
 -- VEHICLES (user&apos;s garage)
@@ -57,7 +65,8 @@ create table build_items (
 create table posts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references profiles(id) on delete cascade,
-  build_id uuid references builds(id),  -- optional link to a build
+  vehicle_id uuid references vehicles(id) on delete set null, -- optional garage link
+  build_id uuid references builds(id),  -- deferred until Planner
   caption text,
   image_urls text[] default &apos;{}&apos;,
   likes_count int default 0,

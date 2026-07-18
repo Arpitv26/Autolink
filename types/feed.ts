@@ -5,6 +5,11 @@ export type FeedAuthor = {
   avatarUrl: string;
 };
 
+export type FeedVehicle = {
+  id: string;
+  label: string;
+};
+
 export type FeedPost = {
   id: string;
   userId: string;
@@ -14,6 +19,7 @@ export type FeedPost = {
   commentsCount: number;
   createdAt: string;
   author: FeedAuthor;
+  vehicle: FeedVehicle | null;
   likedByCurrentUser: boolean;
   followedByCurrentUser: boolean;
 };

@@ -25,26 +25,30 @@ Acceptance Criteria:
   - Share build directly to Social Feed
 Tech: react-native-reanimated + Supabase PostgreSQL
 Feature 3: Social Community Feed
-Instagram-style feed for sharing car builds
+Car-community feed for sharing build updates
 User Story: &quot;As a car enthusiast, I want to share my build progress and see what others are building so I can get inspired and feel part of a community.&quot;
 Acceptance Criteria:
   - Infinite scroll feed (public posts from all users)
-  - Upload 1–5 photos per post (from camera roll)
+  - Upload 1–5 photos per post (from camera roll) with carousel pagination dots
+  - Optionally attach one of the author&apos;s garage vehicles, or keep the post general
   - Like/unlike posts (optimistic UI update)
   - Comment with threaded replies
   - Follow/unfollow other users
-  - Posts can link to a specific saved Mod Planner build
+  - Profile Posts tab filters by All + each garage vehicle
+  - Garage tab manages vehicles only (no embedded Vehicle posts placeholder)
+  - Optional build link deferred until Planner exists
 Tech: Supabase PostgreSQL + Supabase Storage + expo-image-picker
 Feature 4: User Auth + Garage Profile
 Social login and vehicle garage that personalises the whole app
 User Story: &quot;As a new user, I want to sign in quickly and tell the app what car I drive so every AI answer is relevant to my specific vehicle.&quot;
 Acceptance Criteria:
   - Sign in with Google (Apple OAuth is optional for MVP)
-  - Profile setup: username, display name, avatar
+  - Lightweight setup gate: display name + first vehicle
+  - Profile editing: display name, avatar, bio, pronouns (username locked for now)
   - Garage: 1 free vehicle included; up to 4 additional vehicles unlocked via Pro (year/make/model validated via NHTSA)
   - Pro vehicle paywall can bundle additional premium features later (to be defined)
   - Vehicle context auto-injected into every AI query
-  - Profile page shows user&apos;s builds and posts
+  - Profile Posts/Favorites sections show social content; Garage focuses on vehicle CRUD
 Tech: Supabase Auth (Google OAuth) + NHTSA vPIC API
 ---
 Should Have (P1 — v1.1 if time allows)

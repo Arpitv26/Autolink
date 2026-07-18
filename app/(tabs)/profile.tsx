@@ -101,6 +101,7 @@ export default function ProfileScreen() {
   const [tabTransitionDirection, setTabTransitionDirection] = useState<1 | -1>(1);
   const [tabsBarWidth, setTabsBarWidth] = useState(0);
   const [activeVehicleId, setActiveVehicleId] = useState<string | null>(null);
+  const [selectedPostVehicleId, setSelectedPostVehicleId] = useState<string | null>(null);
   const [switchingVehicleId, setSwitchingVehicleId] = useState<string | null>(null);
   const [manageVehicleExpanded, setManageVehicleExpanded] = useState(false);
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
@@ -182,6 +183,23 @@ export default function ProfileScreen() {
     if (!activeFirst) return savedVehicles;
     return [activeFirst, ...savedVehicles.filter((item) => item.id !== activeFirst.id)];
   }, [activeVehicle?.id, savedVehicles]);
+
+  const filteredProfilePosts = useMemo(
+    () =>
+      selectedPostVehicleId
+        ? profileFeed.posts.filter((post) => post.vehicleId === selectedPostVehicleId)
+        : profileFeed.posts,
+    [profileFeed.posts, selectedPostVehicleId]
+  );
+
+  useEffect(() => {
+    if (
+      selectedPostVehicleId &&
+      !savedVehicles.some((vehicle) => vehicle.id === selectedPostVehicleId)
+    ) {
+      setSelectedPostVehicleId(null);
+    }
+  }, [savedVehicles, selectedPostVehicleId]);
 
   useEffect(() => {
     if (savedVehicles.length === 0) {
@@ -506,18 +524,6 @@ export default function ProfileScreen() {
                 </View>
               )}
 
-              <View style={styles.vehiclePostsCard}>
-                <View style={styles.vehiclePostsHeaderRow}>
-                  <Ionicons name="images-outline" size={15} color={theme.colors.accentGreenMuted} />
-                  <Text style={styles.vehiclePostsTitle}>Vehicle posts</Text>
-                </View>
-                <View style={styles.vehiclePostsGrid}>
-                  <View style={styles.vehiclePostTilePlaceholder} />
-                  <View style={styles.vehiclePostTilePlaceholder} />
-                  <View style={styles.vehiclePostTilePlaceholder} />
-                </View>
-              </View>
-
               {profileIdentityError ? <Text style={styles.errorText}>{profileIdentityError}</Text> : null}
             </View>
 
@@ -641,14 +647,80 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : activeSection === 'posts' ? (
-          <ProfilePostList
-            items={profileFeed.posts}
-            loading={profileFeed.loading}
-            error={profileFeed.error}
-            emptyIcon="images-outline"
-            emptyTitle="No posts yet"
-            emptyBody="Share your first build update from the Feed."
-          />
+          <>
+            {savedVehicles.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.postVehicleFilters}
+              >
+                <Pressable
+                  onPress={() => setSelectedPostVehicleId(null)}
+                  style={({ pressed }) => [
+                    styles.postVehicleFilter,
+                    selectedPostVehicleId === null && styles.postVehicleFilterSelected,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.postVehicleFilterText,
+                      selectedPostVehicleId === null && styles.postVehicleFilterTextSelected,
+                    ]}
+                  >
+                    All posts
+                  </Text>
+                </Pressable>
+                {orderedVehicles.map((vehicle) => {
+                  const selected = selectedPostVehicleId === vehicle.id;
+                  return (
+                    <Pressable
+                      key={vehicle.id}
+                      onPress={() => setSelectedPostVehicleId(vehicle.id)}
+                      style={({ pressed }) => [
+                        styles.postVehicleFilter,
+                        selected && styles.postVehicleFilterSelected,
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <Ionicons
+                        name="car-sport-outline"
+                        size={14}
+                        color={
+                          selected
+                            ? theme.colors.textIconDark
+                            : theme.colors.accentGreenMuted
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.postVehicleFilterText,
+                          selected && styles.postVehicleFilterTextSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {vehicle.year} {vehicle.make} {vehicle.model}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+            <ProfilePostList
+              items={filteredProfilePosts}
+              loading={profileFeed.loading}
+              error={profileFeed.error}
+              emptyIcon="images-outline"
+              emptyTitle={
+                selectedPostVehicleId ? 'No posts for this vehicle' : 'No posts yet'
+              }
+              emptyBody={
+                selectedPostVehicleId
+                  ? 'Attach this vehicle when creating a post to see it here.'
+                  : 'Share your first build update from the Feed.'
+              }
+            />
+          </>
         ) : (
           <ProfilePostList
             items={profileFeed.favorites}
@@ -1171,35 +1243,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  vehiclePostsCard: {
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.borderDefault,
-    backgroundColor: theme.colors.appBackground,
-    paddingTop: 14,
-  },
-  vehiclePostsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  vehiclePostsTitle: {
-    color: theme.colors.accentGreenMuted,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  vehiclePostsGrid: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  vehiclePostTilePlaceholder: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSoft,
-    backgroundColor: theme.colors.appBackground,
-  },
   manageVehicleCard: {
     backgroundColor: theme.colors.appBackground,
     borderWidth: 0,
@@ -1456,6 +1499,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  postVehicleFilters: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+  postVehicleFilter: {
+    maxWidth: 250,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderDefault,
+    backgroundColor: theme.colors.surfaceMuted,
+    paddingHorizontal: 12,
+  },
+  postVehicleFilterSelected: {
+    borderColor: theme.colors.borderBrand,
+    backgroundColor: theme.colors.brandPrimary,
+  },
+  postVehicleFilterText: {
+    flexShrink: 1,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  postVehicleFilterTextSelected: {
+    color: theme.colors.textIconDark,
   },
   buttonPressed: {
     transform: [{ scale: 0.985 }],

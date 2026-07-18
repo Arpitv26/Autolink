@@ -2,40 +2,41 @@
 
 Last updated: 2026-07-18
 Owner: Arpit
-Current phase: Phase 2 foundation complete; Social Feed vertical slice implemented
+Current phase: Phase 2 Social Feed complete, including vehicle-linked posts
 
 ## Current Snapshot
 - Expo Router app on Expo SDK 54 with Google OAuth and Supabase session persistence.
 - Signed-in users must complete a display name and first vehicle before entering the tab app.
 - Foundation includes profile/avatar editing, garage CRUD, atomic primary switching/deletion, warm-dark UI, and server-owned Pro entitlement.
-- Social Feed includes paginated posts, 1–5 image creation, optimistic likes, threaded comments/replies, follow/unfollow, profile Posts, and liked-post Favorites.
+- Social Feed includes paginated posts, 1–5 image creation with carousel dots, optional vehicle attachment, optimistic likes, threaded comments/replies, follow/unfollow, profile Posts/Favorites, and Profile Posts vehicle filters.
+- Garage tab shows vehicles and manage controls only; vehicle-specific posts live under the Profile Posts tab filters, not as a Garage placeholder strip.
 - Planner and AI remain placeholders with primary-vehicle context.
 - CI runs install, TypeScript, ESLint, and focused Vitest logic tests.
 
 ## Recently Completed
 - Split reusable garage/profile UI into `components/profile/`.
-- Added `supabase/migrations/20260718080000_foundation_hardening.sql`:
-  - `profiles.bio` and `profiles.pronouns`
-  - protected `profiles.is_pro`
-  - server-enforced 1/5 vehicle limits
-  - atomic primary switch and delete/reassign functions
+- Added foundation hardening and Social Feed migrations, including
+  `supabase/migrations/20260718120000_vehicle_linked_posts.sql`.
 - Added lightweight resumable setup gate in `app/onboarding.tsx`.
-- Added Social Feed schema and storage policies in
-  `supabase/migrations/20260718090000_social_feed.sql`.
 - Added Feed, post creation, comments/replies, likes, follows, and profile post/favorite sections.
+- Added optional “Post about” vehicle selector on create-post; defaults to primary vehicle; supports general posts.
+- Added TikTok-style multi-photo pagination dots and vehicle badges on Feed cards.
+- Added Profile Posts filter chips: All posts + each garage vehicle.
+- Removed unused Garage “Vehicle posts” placeholder tiles for a cleaner garage layout.
 - Added `.github/workflows/ci.yml`, `npm run verify`, and focused onboarding/entitlement tests.
-- Added `supabase/.temp/` to `.gitignore` and removed local CLI state from tracking.
-- Updated Expo dependencies; `expo-doctor` now passes all 18 checks.
+- Applied all migrations and optional demo seed to the linked Supabase project.
 
 ## Verification
 - `npm run verify`: passing
 - `npx expo-doctor`: 18/18 checks passing
 - Expo web production export: passing
-- Physical-device interaction still requires a human Expo Go pass after migrations are applied.
+- Physical-device interaction still requires a human Expo Go pass.
 
 ## Backend Status
-- All migrations were applied to the linked Supabase project on 2026-07-18.
-- `supabase/seed.sql` was applied and the public Feed returned three demo posts.
+- Local and remote migrations are synchronized through
+  `20260718120000_vehicle_linked_posts.sql`.
+- `posts.vehicle_id` is nullable, ownership-validated, and set null if the vehicle is deleted.
+- `supabase/seed.sql` seeded three demo posts (general posts, no vehicle attachment).
 - Re-run `npx supabase db push` after adding future migrations.
 
 ## Open Decisions
@@ -65,14 +66,17 @@ Current phase: Phase 2 foundation complete; Social Feed vertical slice implement
 - `app/(tabs)/feed.tsx`
 - `app/(tabs)/profile.tsx`
 - `app/create-post.tsx`
+- `components/feed/PostCard.tsx`
 - `hooks/useOnboarding.tsx`
 - `hooks/useGarageSetup.ts`
 - `hooks/useFeed.ts`
 - `hooks/useCreatePost.ts`
+- `hooks/useProfileFeedSections.ts`
 - `supabase/migrations/20260718080000_foundation_hardening.sql`
 - `supabase/migrations/20260718090000_social_feed.sql`
+- `supabase/migrations/20260718120000_vehicle_linked_posts.sql`
 
 ## Starter Prompt For New Sessions
 ```text
-Read AGENTS.md and docs/session_state.md. The Foundation and chronological Social Feed vertical slice are implemented. First verify migrations and Expo Go smoke-test status, then recommend the smallest reviewable Mod Planner slice. Do not code unless explicitly asked.
+Read AGENTS.md and docs/session_state.md. Foundation and Social Feed are implemented, including vehicle-linked posts, carousel dots, and Profile Posts vehicle filters. Garage no longer shows a Vehicle posts placeholder. First verify Expo Go smoke-test status, then recommend the smallest reviewable Mod Planner slice. Do not code unless explicitly asked.
 ```

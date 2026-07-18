@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -37,9 +39,17 @@ export function PostCard({
   const { width } = useWindowDimensions();
   const imageWidth = Math.max(240, width - 32);
   const isOwnPost = currentUserId === post.userId;
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
   const openComments = (): void => {
     router.push({ pathname: '/post/[id]', params: { id: post.id } });
+  };
+
+  const handleImageScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>
+  ): void => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / imageWidth);
+    setActiveImageIndex(Math.max(0, Math.min(post.imageUrls.length - 1, nextIndex)));
   };
 
   return (
@@ -85,22 +95,40 @@ export function PostCard({
       </View>
 
       {post.imageUrls.length > 0 ? (
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          style={styles.imageScroller}
-        >
-          {post.imageUrls.map((imageUrl) => (
-            <Image
-              key={imageUrl}
-              source={imageUrl}
-              contentFit="cover"
-              transition={180}
-              style={[styles.postImage, { width: imageWidth }]}
-            />
-          ))}
-        </ScrollView>
+        <View style={styles.imageStage}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleImageScrollEnd}
+            style={styles.imageScroller}
+          >
+            {post.imageUrls.map((imageUrl, index) => (
+              <Image
+                key={imageUrl}
+                source={imageUrl}
+                contentFit="cover"
+                transition={180}
+                accessibilityLabel={`Post photo ${index + 1} of ${post.imageUrls.length}`}
+                style={[styles.postImage, { width: imageWidth }]}
+              />
+            ))}
+          </ScrollView>
+
+          {post.imageUrls.length > 1 ? (
+            <View style={styles.paginationDots} pointerEvents="none">
+              {post.imageUrls.map((imageUrl, index) => (
+                <View
+                  key={`dot-${imageUrl}`}
+                  style={[
+                    styles.paginationDot,
+                    index === activeImageIndex && styles.paginationDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
       ) : (
         <View style={styles.textPost}>
           <Ionicons name="car-sport-outline" size={32} color={theme.colors.accentGreenMuted} />
@@ -108,6 +136,17 @@ export function PostCard({
       )}
 
       <View style={styles.body}>
+        {post.vehicle ? (
+          <View style={styles.vehicleBadge}>
+            <Ionicons
+              name="car-sport-outline"
+              size={14}
+              color={theme.colors.accentGreenMuted}
+            />
+            <Text style={styles.vehicleBadgeText}>{post.vehicle.label}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.actions}>
           <Pressable
             onPress={() => onToggleLike(post.id)}
@@ -138,9 +177,6 @@ export function PostCard({
 
         {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
 
-        {post.imageUrls.length > 1 ? (
-          <Text style={styles.imageCount}>{post.imageUrls.length} photos</Text>
-        ) : null}
       </View>
     </View>
   );
@@ -225,12 +261,35 @@ const styles = StyleSheet.create({
   followTextActive: {
     color: theme.colors.textSecondary,
   },
+  imageStage: {
+    position: 'relative',
+  },
   imageScroller: {
     backgroundColor: theme.colors.appBackground,
   },
   postImage: {
     aspectRatio: 1,
     backgroundColor: theme.colors.surfaceMuted,
+  },
+  paginationDots: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  paginationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+  },
+  paginationDotActive: {
+    width: 15,
+    backgroundColor: theme.colors.accentGreen,
   },
   textPost: {
     minHeight: 150,
@@ -242,6 +301,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 14,
+  },
+  vehicleBadge: {
+    alignSelf: 'flex-start',
+    minHeight: 30,
+    marginBottom: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.borderBrandSoft,
+    backgroundColor: theme.colors.surfaceBrand,
+    paddingHorizontal: 10,
+  },
+  vehicleBadgeText: {
+    color: theme.colors.accentGreenMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   actions: {
     flexDirection: 'row',
@@ -264,12 +341,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSlate,
     fontSize: 14,
     lineHeight: 20,
-  },
-  imageCount: {
-    marginTop: 8,
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,
