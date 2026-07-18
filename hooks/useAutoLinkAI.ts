@@ -1,10 +1,17 @@
 import { useCallback, useState } from 'react';
 import { GiftedChat, type IMessage } from 'react-native-gifted-chat';
+import { formatAiMessageForDisplay } from '../lib/formatAiMessage';
 import { supabase } from '../lib/supabase';
 
 type ChatRoleMessage = {
   role: 'user' | 'assistant';
   content: string;
+};
+
+export type AutoLinkAIContext = {
+  vehicleContext: string;
+  buildContext: string;
+  feedContext: string;
 };
 
 const AI_USER = {
@@ -61,7 +68,7 @@ export type UseAutoLinkAIResult = {
   clearError: () => void;
 };
 
-export function useAutoLinkAI(vehicleContext: string): UseAutoLinkAIResult {
+export function useAutoLinkAI(context: AutoLinkAIContext): UseAutoLinkAIResult {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,17 +116,19 @@ export function useAutoLinkAI(vehicleContext: string): UseAutoLinkAIResult {
           },
           body: {
             messages: toApiMessages(nextMessages),
-            vehicleContext,
+            vehicleContext: context.vehicleContext,
+            buildContext: context.buildContext,
+            feedContext: context.feedContext,
           },
         });
 
         if (fnError) {
           let detailed = fnError.message || 'AI is unavailable. Please try again.';
-          const context = (fnError as { context?: unknown }).context;
+          const responseContext = (fnError as { context?: unknown }).context;
 
-          if (context instanceof Response) {
+          if (responseContext instanceof Response) {
             try {
-              const body: unknown = await context.clone().json();
+              const body: unknown = await responseContext.clone().json();
               detailed = readErrorMessage(body, detailed);
             } catch {
               // keep default message
@@ -144,7 +153,7 @@ export function useAutoLinkAI(vehicleContext: string): UseAutoLinkAIResult {
 
         const assistantMessage: IMessage = {
           _id: `${Date.now()}-assistant`,
-          text: reply,
+          text: formatAiMessageForDisplay(reply),
           createdAt: new Date(),
           user: { ...AI_USER },
         };
@@ -158,7 +167,7 @@ export function useAutoLinkAI(vehicleContext: string): UseAutoLinkAIResult {
         setLoading(false);
       }
     },
-    [loading, messages, vehicleContext]
+    [context.buildContext, context.feedContext, context.vehicleContext, loading, messages]
   );
 
   return {

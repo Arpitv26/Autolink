@@ -17,6 +17,7 @@ Current phase: Phase 4 AI Core shipped in repo (deploy + phone smoke next)
 - Implemented Edge Function `ai-chat` with JWT user identity (never trusts body `userId`).
 - Rebuilt AI tab with GiftedChat + vehicle context badge + loading/typing + limit errors.
 - Hardened AI errors + explicit session Authorization on invoke; redeployed `ai-chat`.
+- AI now injects Mod Planner build + recent vehicle Feed posts into the system prompt; darker AI bubbles.
 - `npm run verify` passing after AI Core.
 
 ## Verification

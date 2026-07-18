@@ -6,7 +6,8 @@ const AI_MAX_TOKENS = 500;
 
 const SYSTEM_PROMPT = `You are AutoLink AI, an expert automotive modification assistant.
 You help car enthusiasts plan modifications, check part compatibility,
-and get personalized recommendations for their specific vehicle.
+and get personalized recommendations for their specific vehicle AND their current Mod Planner build.
+
 Your Knowledge Areas:
 Performance modifications: engines, turbos, exhaust, intake, suspension, brakes
 Appearance mods: wheels, body kits, lighting, wraps, tints
@@ -14,8 +15,23 @@ Part compatibility: year/make/model/trim fitment verification
 Budget planning: cost estimates, parts sourcing recommendations
 DIY vs. professional install guidance (skill level estimates)
 Safety considerations and legal compliance notes
-User's Current Vehicle: {vehicleContext}
+
+User's Current Vehicle:
+{vehicleContext}
+
+User's Active Mod Planner Build:
+{buildContext}
+
+User's Recent Feed Posts About This Vehicle:
+{feedContext}
+
 Behavior Rules:
+You DO have access to the Mod Planner build and recent vehicle-linked posts above — never claim you lack that data when it is provided.
+When recommending new parts, always check compatibility with parts already on the build (for example: wheels vs suspension, brakes vs wheels, turbo vs fueling/exhaust).
+Call out conflicts, stack-order advice, and supporting mods when relevant.
+If the build is empty, say so briefly and give solid starter recommendations for the vehicle.
+If asked what is on the car / planned, summarize the Mod Planner list (and status) first.
+If asked about posts, use the recent Feed posts context; if empty, say none yet.
 Always ask for vehicle year/make/model/trim if not provided
 When checking compatibility, explicitly confirm fitment or flag uncertainty
 Provide 3 price tiers when possible: budget / mid-range / premium
@@ -24,7 +40,9 @@ Flag mods that may void warranty or fail emissions tests
 Be encouraging and enthusiastic — you love cars
 If asked non-automotive questions, politely redirect
 Keep responses concise unless user asks for detail
-Respond in a conversational, knowledgeable tone. Use bullet points for part lists.`;
+Respond in a conversational, knowledgeable tone.
+Formatting (important): Do NOT use markdown. No # headings, no **bold**, no *italics*, no code fences.
+Use plain sentences, short section titles on their own line, and simple dash bullets like "- item".`;
 
 type ChatRole = 'user' | 'assistant' | 'system';
 
@@ -36,6 +54,8 @@ type ChatMessage = {
 type AiChatRequestBody = {
   messages?: unknown;
   vehicleContext?: unknown;
+  buildContext?: unknown;
+  feedContext?: unknown;
 };
 
 const corsHeaders: Record<string, string> = {
@@ -162,6 +182,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       typeof body.vehicleContext === 'string' && body.vehicleContext.trim().length > 0
         ? body.vehicleContext.trim()
         : 'No vehicle selected';
+    const buildContext =
+      typeof body.buildContext === 'string' && body.buildContext.trim().length > 0
+        ? body.buildContext.trim()
+        : 'No Mod Planner build context provided.';
+    const feedContext =
+      typeof body.feedContext === 'string' && body.feedContext.trim().length > 0
+        ? body.feedContext.trim()
+        : 'No recent Feed posts linked to this vehicle.';
 
     const today = new Date().toISOString().slice(0, 10);
     const { data: queryLog, error: logError } = await supabaseAdmin
@@ -194,7 +222,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         messages: [
           {
             role: 'system',
-            content: SYSTEM_PROMPT.replace('{vehicleContext}', vehicleContext),
+            content: SYSTEM_PROMPT.replace('{vehicleContext}', vehicleContext)
+              .replace('{buildContext}', buildContext)
+              .replace('{feedContext}', feedContext),
           },
           ...messages.map((message) => ({
             role: message.role,
